@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Event Planner</title>
+  <link rel="stylesheet" href="/dashboard.css" />
+</head>
+<body>
+  <div class="page-shell">
+    <header class="app-header panel">
+      <div>
+        <p class="app-kicker">Friends planning hub</p>
+        <h1>Event Planner</h1>
+      </div>
+
+      <div class="header-actions">
+        <p id="welcome" class="welcome-text">Loading profile...</p>
+
+        <div class="view-toggle" role="tablist" aria-label="View switcher">
+          <button id="feedTab" class="toggle-btn is-active" type="button">Event feed</button>
+          <button id="calendarTab" class="toggle-btn" type="button">Calendar view</button>
+        </div>
+
+        <button id="logoutBtn" class="secondary-btn" type="button">Logout</button>
+      </div>
+    </header>
+
+    <div class="dashboard-grid">
+      <aside class="panel left-rail">
+        <div class="rail-head">
+          <h2>All events</h2>
+          <p>Newest posts first</p>
+        </div>
+
+        <section class="nav-section">
+          <div class="nav-section-head">
+            <h3>Upcoming</h3>
+            <span id="upcomingCount">0</span>
+          </div>
+          <div id="upcomingList" class="event-nav-list"></div>
+        </section>
+
+        <section class="nav-section past-section">
+          <div class="nav-section-head">
+            <h3>Past events</h3>
+            <span id="pastCount">0</span>
+          </div>
+          <div id="pastList" class="event-nav-list"></div>
+        </section>
+      </aside>
+
+      <main class="main-column">
+        <section class="panel composer-panel">
+          <div class="section-head">
+            <div>
+              <p class="app-kicker">New event post</p>
+              <h2>Plan something for your friends</h2>
+            </div>
+          </div>
+
+          <form id="eventForm" class="event-form">
+            <label>
+              <span>Title</span>
+              <input id="titleInput" name="title" type="text" required />
+            </label>
+
+            <div class="form-grid">
+              <label>
+                <span>When</span>
+                <input id="whenInput" name="when" type="datetime-local" required />
+              </label>
+
+              <label>
+                <span>Where</span>
+                <input id="whereInput" name="where" type="text" required />
+              </label>
+            </div>
+
+            <label>
+              <span>Extra info</span>
+              <textarea
+                id="extraInfoInput"
+                name="extraInfo"
+                rows="5"
+                placeholder="Add notes, timing details, what to bring, or anything friends should know."
+              ></textarea>
+            </label>
+
+            <div class="form-actions">
+              <p id="statusMessage" class="status-message"></p>
+              <button class="primary-btn" type="submit">Post event</button>
+            </div>
+          </form>
+        </section>
+
+        <section id="feedView" class="panel detail-panel view-panel">
+          <div id="selectedEvent"></div>
+        </section>
+
+        <section id="calendarView" class="panel calendar-panel view-panel is-hidden">
+          <div class="section-head">
+            <div>
+              <p class="app-kicker">Calendar month view</p>
+              <h2>Event calendar</h2>
+            </div>
+            <div class="calendar-controls">
+              <button id="prevMonthBtn" class="secondary-btn" type="button">Previous</button>
+              <p id="calendarMonthLabel" class="calendar-month-label">Loading...</p>
+              <button id="nextMonthBtn" class="secondary-btn" type="button">Next</button>
+            </div>
+          </div>
+          <div class="calendar-weekdays" aria-hidden="true">
+            <span>Sun</span>
+            <span>Mon</span>
+            <span>Tue</span>
+            <span>Wed</span>
+            <span>Thu</span>
+            <span>Fri</span>
+            <span>Sat</span>
+          </div>
+          <div id="calendarGrid" class="calendar-grid"></div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script src="/dashboard.js"></script>
+</body>
+</html>
