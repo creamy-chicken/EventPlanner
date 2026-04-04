@@ -1,3 +1,12 @@
+const ACCESS_STORAGE_KEY = "eventPlannerUser";
+
+const accessGate = document.getElementById("accessGate");
+const accessForm = document.getElementById("accessForm");
+const accessPrompt = document.getElementById("accessPrompt");
+const accessLabel = document.getElementById("accessLabel");
+const accessInput = document.getElementById("accessInput");
+const accessStatus = document.getElementById("accessStatus");
+const accessSubmit = document.getElementById("accessSubmit");
 const welcomeEl = document.getElementById("welcome");
 const eventForm = document.getElementById("eventForm");
 const titleInput = document.getElementById("titleInput");
@@ -21,6 +30,8 @@ const calendarView = document.getElementById("calendarView");
 const logoutBtn = document.getElementById("logoutBtn");
 
 let currentUser = "";
+let pendingName = "";
+let accessStep = "name";
 let events = [];
 let selectedEventId = null;
 let displayedMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
@@ -29,6 +40,10 @@ function escapeHtml(text) {
   const div = document.createElement("div");
   div.textContent = text || "";
   return div.innerHTML;
+}
+
+function normalizeName(value) {
+  return String(value || "").trim().toLowerCase();
 }
 
 function parseLocalDateTime(value) {
@@ -83,18 +98,6 @@ function formatWhen(value) {
   });
 }
 
-function formatDay(value) {
-  const date = parseLocalDateTime(`${value}T00:00`);
-  if (!date) return value;
-
-  return date.toLocaleDateString(undefined, {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric"
-  });
-}
-
 function formatTime(value) {
   const date = parseLocalDateTime(value);
   if (!date) return value;
@@ -121,6 +124,43 @@ function sortNewestFirst(list) {
   return [...list].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
+}
+
+function setCurrentUser(username) {
+  currentUser = username;
+  localStorage.setItem(ACCESS_STORAGE_KEY, username);
+  welcomeEl.textContent = username;
+  accessGate.classList.add("is-hidden");
+}
+
+function resetAccessForm() {
+  accessStep = "name";
+  pendingName = "";
+  accessPrompt.textContent =
+    "Start with your name. Then answer your favorite-color question to enter the site.";
+  accessLabel.textContent = "Your name";
+  accessInput.value = "";
+  accessInput.type = "text";
+  accessStatus.textContent = "";
+  accessSubmit.textContent = "Continue";
+}
+
+function openGate() {
+  resetAccessForm();
+  accessGate.classList.remove("is-hidden");
+  welcomeEl.textContent = "Waiting for name";
+}
+
+async function verifyStoredUser() {
+  const storedName = localStorage.getItem(ACCESS_STORAGE_KEY);
+  if (!storedName) {
+    openGate();
+    return;
+  }
+
+  currentUser = storedName;
+  welcomeEl.textContent = storedName;
+  accessGate.classList.add("is-hidden");
 }
 
 function selectEvent(eventId) {
@@ -162,8 +202,12 @@ function renderSelectedEvent() {
   const selected = events.find((event) => event.id === selectedEventId) || events[0];
   selectedEventId = selected.id;
   const canReply = selected.createdBy === currentUser;
-
+  const canDelete = selected.createdBy === currentUser;
   const replies = (selected.replies || []).filter((reply) => reply.username);
+  const rsvps = Object.entries(selected.rsvps || {}).sort((a, b) =>
+    a[0].localeCompare(b[0])
+  );
+  const currentResponse = (selected.rsvps || {})[currentUser] || "";
 
   selectedEventEl.innerHTML = `
     <article class="event-detail">
@@ -171,6 +215,22 @@ function renderSelectedEvent() {
         <span>Posted by ${escapeHtml(selected.createdBy)}</span>
         <span>${escapeHtml(new Date(selected.createdAt).toLocaleString())}</span>
       </div>
+
+      ${
+        canDelete
+          ? `
+            <div class="detail-actions">
+              <button
+                class="danger-btn"
+                type="button"
+                data-delete-event="${selected.id}"
+              >
+                Delete event
+              </button>
+            </div>
+          `
+          : ""
+      }
 
       <h2>${escapeHtml(selected.title)}</h2>
 
@@ -189,6 +249,51 @@ function renderSelectedEvent() {
         <h3>Extra info</h3>
         <p>${escapeHtml(selected.extraInfo || "No extra info added yet.")}</p>
       </section>
+
+      <aside class="info-block rsvp-block">
+        <div class="section-head">
+          <div>
+            <p class="app-kicker">Attendance</p>
+            <h3>Can you come?</h3>
+          </div>
+        </div>
+
+        <div class="rsvp-actions">
+          <button
+            class="rsvp-btn${currentResponse === "yes" ? " is-active" : ""}"
+            type="button"
+            data-rsvp-event="${selected.id}"
+            data-rsvp-response="yes"
+          >
+            Yes
+          </button>
+          <button
+            class="rsvp-btn${currentResponse === "no" ? " is-active" : ""}"
+            type="button"
+            data-rsvp-event="${selected.id}"
+            data-rsvp-response="no"
+          >
+            No
+          </button>
+        </div>
+
+        <p class="status-message" data-rsvp-status="${selected.id}"></p>
+
+        ${
+          rsvps.length
+            ? `
+              <div class="rsvp-list">
+                ${rsvps.map(([name, value]) => `
+                  <div class="rsvp-item">
+                    <span>${escapeHtml(name)}</span>
+                    <strong>${escapeHtml(value)}</strong>
+                  </div>
+                `).join("")}
+              </div>
+            `
+            : '<p class="empty-copy">No responses yet.</p>'
+        }
+      </aside>
 
       <section class="info-block replies-block">
         <div class="section-head">
@@ -251,6 +356,8 @@ function renderCalendar() {
   const firstDay = new Date(year, month, 1);
   const startWeekday = firstDay.getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const today = new Date();
+  const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
   const cells = [];
 
   for (let index = 0; index < startWeekday; index += 1) {
@@ -260,7 +367,7 @@ function renderCalendar() {
   for (let day = 1; day <= daysInMonth; day += 1) {
     const key = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     const dayEvents = (grouped[key] || []).sort((a, b) => a.when.localeCompare(b.when));
-    const isToday = dayKeyFromLocalValue(new Date().toISOString().slice(0, 10)) === key;
+    const isToday = todayKey === key;
 
     cells.push(`
       <section class="calendar-cell${isToday ? " calendar-cell--today" : ""}">
@@ -299,19 +406,6 @@ function renderAll() {
   renderNavList(pastList, past);
   renderSelectedEvent();
   renderCalendar();
-}
-
-async function loadUser() {
-  const res = await fetch("/me");
-
-  if (!res.ok) {
-    window.location.href = "/";
-    return;
-  }
-
-  const data = await res.json();
-  currentUser = data.username;
-  welcomeEl.textContent = data.username;
 }
 
 async function loadEvents() {
@@ -367,15 +461,29 @@ nextMonthBtn.addEventListener("click", () => {
   renderCalendar();
 });
 
+logoutBtn.addEventListener("click", () => {
+  localStorage.removeItem(ACCESS_STORAGE_KEY);
+  currentUser = "";
+  openGate();
+});
+
 eventForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+
+  if (!currentUser) {
+    statusMessage.textContent = "Enter your name first.";
+    openGate();
+    return;
+  }
+
   statusMessage.textContent = "Posting event...";
 
   const payload = {
     title: titleInput.value.trim(),
     when: whenInput.value,
     where: whereInput.value.trim(),
-    extraInfo: extraInfoInput.value.trim()
+    extraInfo: extraInfoInput.value.trim(),
+    username: currentUser
   };
 
   const res = await fetch("/events", {
@@ -400,14 +508,26 @@ eventForm.addEventListener("submit", async (event) => {
   renderAll();
 });
 
-logoutBtn.addEventListener("click", async () => {
-  await fetch("/logout", { method: "POST" });
-  window.location.href = "/";
-});
-
 document.addEventListener("click", (event) => {
+  const deleteTrigger = event.target.closest("[data-delete-event]");
+  if (deleteTrigger) {
+    const eventId = Number(deleteTrigger.getAttribute("data-delete-event"));
+    deleteEvent(eventId);
+    return;
+  }
+
+  const rsvpTrigger = event.target.closest("[data-rsvp-event]");
+  if (rsvpTrigger) {
+    const eventId = Number(rsvpTrigger.getAttribute("data-rsvp-event"));
+    const response = rsvpTrigger.getAttribute("data-rsvp-response");
+    submitRsvp(eventId, response);
+    return;
+  }
+
   const trigger = event.target.closest("[data-event-id]");
-  if (!trigger) return;
+  if (!trigger) {
+    return;
+  }
 
   selectEvent(Number(trigger.getAttribute("data-event-id")));
   feedTab.click();
@@ -423,27 +543,30 @@ document.addEventListener("submit", async (event) => {
 
   const eventId = Number(form.getAttribute("data-reply-form"));
   const textarea = form.querySelector('textarea[name="replyBody"]');
-  const status = form.querySelector("[data-reply-status]");
+  const replyStatus = form.querySelector("[data-reply-status]");
   const body = textarea.value.trim();
 
   if (!body) {
-    status.textContent = "Reply text is required.";
+    replyStatus.textContent = "Reply text is required.";
     return;
   }
 
-  status.textContent = "Posting reply...";
+  replyStatus.textContent = "Posting reply...";
 
   const res = await fetch(`/events/${eventId}/replies`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
     },
-    body: JSON.stringify({ body })
+    body: JSON.stringify({
+      body,
+      username: currentUser
+    })
   });
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ error: "Could not post reply." }));
-    status.textContent = error.error || "Could not post reply.";
+    replyStatus.textContent = error.error || "Could not post reply.";
     return;
   }
 
@@ -451,8 +574,139 @@ document.addEventListener("submit", async (event) => {
   events = events.map((existingEvent) =>
     existingEvent.id === data.event.id ? data.event : existingEvent
   );
-  status.textContent = "Reply posted.";
   renderAll();
 });
 
-Promise.all([loadUser(), loadEvents()]);
+async function deleteEvent(eventId) {
+  if (!currentUser) {
+    openGate();
+    return;
+  }
+
+  const confirmed = window.confirm("Delete this event?");
+  if (!confirmed) {
+    return;
+  }
+
+  const res = await fetch(`/events/${eventId}`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      username: currentUser
+    })
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: "Could not delete event." }));
+    statusMessage.textContent = error.error || "Could not delete event.";
+    return;
+  }
+
+  events = events.filter((event) => event.id !== eventId);
+  selectedEventId = events.length ? events[0].id : null;
+  statusMessage.textContent = "Event deleted.";
+  renderAll();
+}
+
+async function submitRsvp(eventId, response) {
+  if (!currentUser) {
+    openGate();
+    return;
+  }
+
+  const status = document.querySelector(`[data-rsvp-status="${eventId}"]`);
+  if (status) {
+    status.textContent = "Saving response...";
+  }
+
+  const res = await fetch(`/events/${eventId}/rsvp`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      username: currentUser,
+      response
+    })
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: "Could not save response." }));
+    if (status) {
+      status.textContent = error.error || "Could not save response.";
+    }
+    return;
+  }
+
+  const data = await res.json();
+  events = events.map((existingEvent) =>
+    existingEvent.id === data.event.id ? data.event : existingEvent
+  );
+  renderAll();
+}
+
+accessForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  accessStatus.textContent = "";
+
+  if (accessStep === "name") {
+    const name = accessInput.value.trim();
+    if (!name) {
+      accessStatus.textContent = "Enter your name.";
+      return;
+    }
+
+    accessStatus.textContent = "Checking question...";
+
+    const res = await fetch(`/access-question?name=${encodeURIComponent(name)}`);
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({ error: "Could not find that name." }));
+      accessStatus.textContent = error.error || "Could not find that name.";
+      return;
+    }
+
+    const data = await res.json();
+    pendingName = name;
+    accessStep = "answer";
+    accessPrompt.textContent = data.question;
+    accessLabel.textContent = "Answer";
+    accessInput.value = "";
+    accessInput.type = "text";
+    accessSubmit.textContent = "Enter site";
+    accessStatus.textContent = "";
+    return;
+  }
+
+  const answer = accessInput.value.trim();
+  if (!answer) {
+    accessStatus.textContent = "Enter the answer.";
+    return;
+  }
+
+  accessStatus.textContent = "Verifying...";
+
+  const res = await fetch("/verify-user", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      name: pendingName,
+      answer
+    })
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: "Verification failed." }));
+    accessStatus.textContent = error.error || "Verification failed.";
+    return;
+  }
+
+  const data = await res.json();
+  setCurrentUser(data.username);
+});
+
+verifyStoredUser();
+loadEvents();

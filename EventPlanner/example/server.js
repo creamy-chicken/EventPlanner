@@ -1,11 +1,42 @@
 const express = require("express");
-const session = require("express-session");
 const path = require("path");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const publicDir = path.join(__dirname, "public");
 let nextEventId = 1;
+
+const configuredMemberAnswers = {
+  dasha: "black",
+  sanjana: "green",
+  leah: "blue",
+  arthur: "bombs"
+};
+
+const memberAnswers = Object.fromEntries(
+  Object.entries(configuredMemberAnswers).map(([name, answer]) => [
+    normalizeName(name),
+    normalizeName(answer)
+  ])
+);
+
+function normalizeName(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+const events = [];
+
+function displayName(value) {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  return trimmed
+    .split(/\s+/)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
+}
 
 function isValidLocalDateTime(value) {
   if (typeof value !== "string") {
@@ -50,108 +81,55 @@ function findEventById(eventId) {
   return events.find((event) => event.id === Number(eventId));
 }
 
+function requireKnownUser(name) {
+  const normalized = normalizeName(name);
+  return normalized && memberAnswers[normalized] ? normalized : "";
+}
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(publicDir));
 
-app.use(
-  session({
-    secret: "simple-secret-key",
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: false,
-      httpOnly: true
-    }
-  })
-);
-
-// In-memory user store for the demo
-const users = [
-  {
-    username: "test",
-    password: "1234"
-  }
-];
-const events = [];
-
-function requireLogin(req, res, next) {
-  if (!req.session.username) {
-    return res.redirect("/");
-  }
-  next();
-}
-
 app.get("/", (req, res) => {
-  if (req.session.username) {
-    return res.redirect("/dashboard");
-  }
-
-  res.send(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8" />
-      <title>Login</title>
-    </head>
-    <body>
-      <h1>Login</h1>
-      <form method="POST" action="/login">
-        <div>
-          <label>Username:</label>
-          <input type="text" name="username" required />
-        </div>
-        <br />
-        <div>
-          <label>Password:</label>
-          <input type="password" name="password" required />
-        </div>
-        <br />
-        <button type="submit">Log in</button>
-      </form>
-
-      <p>Sign in with username <strong>test</strong> and password <strong>1234</strong>.</p>
-    </body>
-    </html>
-  `);
-});
-
-app.post("/login", (req, res) => {
-  const { username, password } = req.body;
-
-  const user = users.find(
-    (u) => u.username === username && u.password === password
-  );
-
-  if (!user) {
-    return res.status(401).send(`
-      <h1>Login failed</h1>
-      <p>Wrong username or password.</p>
-      <a href="/">Try again</a>
-    `);
-  }
-
-  req.session.username = user.username;
-  res.redirect("/dashboard");
-});
-
-app.get("/dashboard", requireLogin, (req, res) => {
   res.sendFile(path.join(publicDir, "dashboard.html"));
 });
 
-app.get("/me", requireLogin, (req, res) => {
-  const user = users.find((u) => u.username === req.session.username);
+app.get("/access-question", (req, res) => {
+  const name = requireKnownUser(req.query.name);
 
-  if (!user) {
-    return res.status(404).json({ error: "User not found" });
+  if (!name) {
+    return res.status(404).json({
+      error: "That name is not on the planning list."
+    });
   }
 
   res.json({
-    username: user.username
+    question: `What is ${displayName(name)}'s favorite color?`
   });
 });
 
-app.get("/events", requireLogin, (req, res) => {
+app.post("/verify-user", (req, res) => {
+  const name = requireKnownUser(req.body.name);
+  const answer = normalizeName(req.body.answer);
+
+  if (!name) {
+    return res.status(404).json({
+      error: "That name is not on the planning list."
+    });
+  }
+
+  if (memberAnswers[name] !== answer) {
+    return res.status(401).json({
+      error: "That answer is not correct."
+    });
+  }
+
+  res.json({
+    username: displayName(name)
+  });
+});
+
+app.get("/events", (req, res) => {
   const sortedEvents = [...events].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
@@ -159,8 +137,13 @@ app.get("/events", requireLogin, (req, res) => {
   res.json({ events: sortedEvents });
 });
 
-app.post("/events", requireLogin, (req, res) => {
-  const { title, when, where, extraInfo } = req.body;
+app.post("/events", (req, res) => {
+  const { title, when, where, extraInfo, username } = req.body;
+  const createdBy = requireKnownUser(username);
+
+  if (!createdBy) {
+    return res.status(401).json({ error: "A verified name is required." });
+  }
 
   if (!title || !when || !where) {
     return res.status(400).json({
@@ -180,23 +163,29 @@ app.post("/events", requireLogin, (req, res) => {
     when: normalizeLocalDateTime(when),
     where: String(where).trim(),
     extraInfo: String(extraInfo || "").trim(),
-    createdBy: req.session.username,
+    createdBy: displayName(createdBy),
     createdAt: new Date().toISOString(),
-    replies: []
+    replies: [],
+    rsvps: {}
   };
 
   events.push(newEvent);
   res.status(201).json({ event: newEvent });
 });
 
-app.post("/events/:id/replies", requireLogin, (req, res) => {
+app.post("/events/:id/replies", (req, res) => {
   const event = findEventById(req.params.id);
+  const username = requireKnownUser(req.body.username);
 
   if (!event) {
     return res.status(404).json({ error: "Event not found." });
   }
 
-  if (event.createdBy !== req.session.username) {
+  if (!username) {
+    return res.status(401).json({ error: "A verified name is required." });
+  }
+
+  if (event.createdBy !== displayName(username)) {
     return res.status(403).json({
       error: "Only the original event owner can reply here."
     });
@@ -210,7 +199,7 @@ app.post("/events/:id/replies", requireLogin, (req, res) => {
 
   const reply = {
     id: Date.now(),
-    username: req.session.username,
+    username: displayName(username),
     body,
     createdAt: new Date().toISOString()
   };
@@ -219,10 +208,49 @@ app.post("/events/:id/replies", requireLogin, (req, res) => {
   res.status(201).json({ reply, event });
 });
 
-app.post("/logout", requireLogin, (req, res) => {
-  req.session.destroy(() => {
-    res.json({ success: true });
-  });
+app.post("/events/:id/rsvp", (req, res) => {
+  const event = findEventById(req.params.id);
+  const username = requireKnownUser(req.body.username);
+  const response = String(req.body.response || "").trim().toLowerCase();
+
+  if (!event) {
+    return res.status(404).json({ error: "Event not found." });
+  }
+
+  if (!username) {
+    return res.status(401).json({ error: "A verified name is required." });
+  }
+
+  if (!["yes", "no"].includes(response)) {
+    return res.status(400).json({ error: "Response must be yes or no." });
+  }
+
+  event.rsvps[displayName(username)] = response;
+  res.json({ event });
+});
+
+app.delete("/events/:id", (req, res) => {
+  const event = findEventById(req.params.id);
+  const username = requireKnownUser(req.body.username);
+
+  if (!event) {
+    return res.status(404).json({ error: "Event not found." });
+  }
+
+  if (!username) {
+    return res.status(401).json({ error: "A verified name is required." });
+  }
+
+  if (event.createdBy !== displayName(username)) {
+    return res.status(403).json({
+      error: "Only the original event owner can delete this event."
+    });
+  }
+
+  const eventIndex = events.findIndex((item) => item.id === event.id);
+  events.splice(eventIndex, 1);
+
+  res.json({ success: true, deletedEventId: event.id });
 });
 
 app.listen(PORT, "0.0.0.0", () => {
