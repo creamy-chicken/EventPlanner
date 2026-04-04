@@ -33,6 +33,72 @@ body {
     linear-gradient(180deg, #fbf8f2 0%, var(--bg) 48%, #ece2d1 100%);
 }
 
+.access-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(20, 24, 22, 0.46);
+}
+
+.access-gate.is-hidden {
+  display: none;
+}
+
+.access-panel {
+  width: min(520px, 100%);
+  padding: 28px;
+  background: var(--panel-strong);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+
+.access-panel h2 {
+  margin-top: 8px;
+  font-size: 2rem;
+}
+
+.access-copy {
+  margin-top: 12px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.access-form {
+  display: grid;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.access-form label {
+  display: block;
+}
+
+.access-form span {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.access-form input {
+  width: 100%;
+  padding: 15px 16px;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  background: var(--panel-strong);
+  color: var(--ink);
+  outline: none;
+}
+
+.access-form input:focus {
+  border-color: rgba(47, 125, 102, 0.45);
+}
+
 button,
 input,
 textarea {
@@ -141,6 +207,13 @@ p {
 .secondary-btn {
   background: rgba(31, 35, 33, 0.08);
   color: var(--ink);
+}
+
+.danger-btn {
+  padding: 12px 18px;
+  border-radius: 0;
+  background: #8d2f2f;
+  color: #fff8f6;
 }
 
 .dashboard-grid {
@@ -328,6 +401,12 @@ p {
   font-size: 0.92rem;
 }
 
+.detail-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
 .detail-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -369,6 +448,44 @@ p {
 .calendar-grid {
   display: grid;
   gap: 16px;
+}
+
+.rsvp-block {
+  margin-top: 18px;
+}
+
+.rsvp-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.rsvp-btn {
+  padding: 12px 18px;
+  border: 1px solid rgba(31, 35, 33, 0.14);
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--ink);
+}
+
+.rsvp-btn.is-active {
+  background: rgba(47, 125, 102, 0.14);
+  border-color: rgba(47, 125, 102, 0.38);
+}
+
+.rsvp-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.rsvp-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(31, 35, 33, 0.08);
+  background: rgba(255, 255, 255, 0.58);
 }
 
 .reply-top {

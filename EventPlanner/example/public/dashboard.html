@@ -7,6 +7,27 @@
   <link rel="stylesheet" href="/dashboard.css" />
 </head>
 <body>
+  <div id="accessGate" class="access-gate">
+    <div class="access-panel">
+      <p class="app-kicker">Planner access</p>
+      <h2>Enter your name</h2>
+      <p id="accessPrompt" class="access-copy">
+        Start with your name. Then answer your favorite-color question to enter the site.
+      </p>
+
+      <form id="accessForm" class="access-form">
+        <label>
+          <span id="accessLabel">Your name</span>
+          <input id="accessInput" type="text" autocomplete="off" required />
+        </label>
+        <div class="form-actions">
+          <p id="accessStatus" class="status-message"></p>
+          <button id="accessSubmit" class="primary-btn" type="submit">Continue</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div class="page-shell">
     <header class="app-header panel">
       <div>
@@ -22,7 +43,7 @@
           <button id="calendarTab" class="toggle-btn" type="button">Calendar view</button>
         </div>
 
-        <button id="logoutBtn" class="secondary-btn" type="button">Logout</button>
+        <button id="logoutBtn" class="secondary-btn" type="button">Change user</button>
       </div>
     </header>
 
