@@ -103,6 +103,75 @@ function userColor(name) {
   return memberColors[normalizeName(name)] || "#d9d9d9";
 }
 
+function validateRecurringInput({
+  title,
+  frequency,
+  day,
+  time,
+  endTime,
+  endDate,
+  where,
+  availability
+}) {
+  if (!title || !frequency || !time || !where) {
+    return "Title, frequency, time, and where are required.";
+  }
+
+  const normalizedFrequency = String(frequency).trim().toLowerCase();
+  const normalizedDay = String(day).trim().toLowerCase();
+  const normalizedTime = String(time).trim();
+  const normalizedEndTime = String(endTime || "").trim();
+  const normalizedEndDate = String(endDate || "").trim();
+  const normalizedAvailability = String(availability || "free").trim().toLowerCase();
+
+  const validFrequencies = [
+    "daily",
+    "weekly",
+    "biweekly",
+    "monthly",
+    "every weekday",
+    "every weekend"
+  ];
+  const validDays = [
+    "sunday",
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday"
+  ];
+
+  if (!validFrequencies.includes(normalizedFrequency)) {
+    return "Frequency must be daily, weekly, biweekly, monthly, every weekday, or every weekend.";
+  }
+
+  if (
+    ["weekly", "biweekly", "monthly"].includes(normalizedFrequency) &&
+    !validDays.includes(normalizedDay)
+  ) {
+    return "Choose a valid weekday.";
+  }
+
+  if (!/^\d{2}:\d{2}$/.test(normalizedTime)) {
+    return "Time must use HH:MM format.";
+  }
+
+  if (normalizedEndTime && !/^\d{2}:\d{2}$/.test(normalizedEndTime)) {
+    return "End time must use HH:MM format.";
+  }
+
+  if (normalizedEndDate && !isValidDateOnly(normalizedEndDate)) {
+    return "End date must use YYYY-MM-DD format.";
+  }
+
+  if (!["free", "busy"].includes(normalizedAvailability)) {
+    return "Availability must be free or busy.";
+  }
+
+  return "";
+}
+
 function isValidDateOnly(value) {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     return false;
@@ -312,27 +381,12 @@ app.post("/recurring-events", (req, res) => {
     return res.status(401).json({ error: "A verified name is required." });
   }
 
-  if (!title || !frequency || !time || !where) {
-    return res.status(400).json({
-      error: "Title, frequency, time, and where are required."
-    });
-  }
-
   const normalizedFrequency = String(frequency).trim().toLowerCase();
   const normalizedDay = String(day).trim().toLowerCase();
   const normalizedTime = String(time).trim();
   const normalizedEndTime = String(endTime || "").trim();
   const normalizedEndDate = String(endDate || "").trim();
   const normalizedAvailability = String(availability || "free").trim().toLowerCase();
-
-  const validFrequencies = [
-    "daily",
-    "weekly",
-    "biweekly",
-    "monthly",
-    "every weekday",
-    "every weekend"
-  ];
   const validDays = [
     "sunday",
     "monday",
@@ -343,35 +397,18 @@ app.post("/recurring-events", (req, res) => {
     "saturday"
   ];
 
-  if (!validFrequencies.includes(normalizedFrequency)) {
-    return res.status(400).json({
-      error: "Frequency must be daily, weekly, biweekly, monthly, every weekday, or every weekend."
-    });
-  }
-
-  if (
-    ["weekly", "biweekly", "monthly"].includes(normalizedFrequency) &&
-    !validDays.includes(normalizedDay)
-  ) {
-    return res.status(400).json({ error: "Choose a valid weekday." });
-  }
-
-  if (!/^\d{2}:\d{2}$/.test(normalizedTime)) {
-    return res.status(400).json({ error: "Time must use HH:MM format." });
-  }
-
-  if (normalizedEndTime && !/^\d{2}:\d{2}$/.test(normalizedEndTime)) {
-    return res.status(400).json({ error: "End time must use HH:MM format." });
-  }
-
-  if (normalizedEndDate && !isValidDateOnly(normalizedEndDate)) {
-    return res.status(400).json({ error: "End date must use YYYY-MM-DD format." });
-  }
-
-  if (!["free", "busy"].includes(normalizedAvailability)) {
-    return res.status(400).json({
-      error: "Availability must be free or busy."
-    });
+  const recurringError = validateRecurringInput({
+    title,
+    frequency,
+    day,
+    time,
+    endTime,
+    endDate,
+    where,
+    availability
+  });
+  if (recurringError) {
+    return res.status(400).json({ error: recurringError });
   }
 
   const recurringEvent = {
@@ -392,6 +429,111 @@ app.post("/recurring-events", (req, res) => {
 
   recurringEvents.push(recurringEvent);
   res.status(201).json({ recurringEvent });
+});
+
+app.put("/events/:id", (req, res) => {
+  const event = findEventById(req.params.id);
+  const username = requireKnownUser(req.body.username);
+  const { title, when, where, extraInfo } = req.body;
+
+  if (!event) {
+    return res.status(404).json({ error: "Event not found." });
+  }
+
+  if (!username) {
+    return res.status(401).json({ error: "A verified name is required." });
+  }
+
+  if (event.createdBy !== displayName(username)) {
+    return res.status(403).json({
+      error: "Only the original event owner can edit this event."
+    });
+  }
+
+  if (!title || !when || !where) {
+    return res.status(400).json({
+      error: "Title, when, and where are required."
+    });
+  }
+
+  if (!isValidLocalDateTime(when)) {
+    return res.status(400).json({
+      error: "Please provide a valid date and time."
+    });
+  }
+
+  event.title = String(title).trim();
+  event.when = normalizeLocalDateTime(when);
+  event.where = String(where).trim();
+  event.extraInfo = String(extraInfo || "").trim();
+
+  res.json({ event });
+});
+
+app.put("/recurring-events/:id", (req, res) => {
+  const event = findRecurringEventById(req.params.id);
+  const username = requireKnownUser(req.body.username);
+  const {
+    title,
+    frequency,
+    day,
+    time,
+    endTime,
+    where,
+    extraInfo,
+    endDate
+  } = req.body;
+
+  if (!event) {
+    return res.status(404).json({ error: "Recurring event not found." });
+  }
+
+  if (!username) {
+    return res.status(401).json({ error: "A verified name is required." });
+  }
+
+  if (event.createdBy !== displayName(username)) {
+    return res.status(403).json({
+      error: "Only the original event owner can edit this recurring event."
+    });
+  }
+
+  const recurringError = validateRecurringInput({
+    title,
+    frequency,
+    day,
+    time,
+    endTime,
+    endDate,
+    where,
+    availability: event.availability
+  });
+  if (recurringError) {
+    return res.status(400).json({ error: recurringError });
+  }
+
+  const validDays = [
+    "sunday",
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday"
+  ];
+  const normalizedFrequency = String(frequency).trim().toLowerCase();
+  const normalizedDay = String(day).trim().toLowerCase();
+
+  event.title = String(title).trim();
+  event.frequency = normalizedFrequency;
+  event.day = validDays.includes(normalizedDay) ? normalizedDay : "";
+  event.time = String(time).trim();
+  event.endTime = String(endTime || "").trim();
+  event.endDate = String(endDate || "").trim();
+  event.where = String(where).trim();
+  event.extraInfo = String(extraInfo || "").trim();
+
+  res.json({ recurringEvent: event });
 });
 
 app.delete("/recurring-events/:id", (req, res) => {

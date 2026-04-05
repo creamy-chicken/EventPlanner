@@ -299,6 +299,11 @@ p {
   gap: 10px;
 }
 
+.folder-list {
+  display: grid;
+  gap: 12px;
+}
+
 .event-nav-list.is-collapsed {
   display: none;
 }
@@ -310,6 +315,18 @@ p {
   text-align: left;
   background: rgba(255, 255, 255, 0.58);
   border: 1px solid transparent;
+}
+
+.event-nav-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.event-nav-marker {
+  width: 10px;
+  height: 10px;
+  min-width: 10px;
 }
 
 .event-nav-item.is-selected {
@@ -328,6 +345,31 @@ p {
   margin-top: 6px;
   font-size: 0.92rem;
   color: var(--muted);
+}
+
+.folder-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  padding: 0 10px 12px;
+}
+
+.folder-form input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  background: var(--panel-strong);
+  color: var(--ink);
+  outline: none;
+}
+
+.folder-card {
+  padding: 10px 0 0;
+  border-top: 1px solid var(--line);
+}
+
+.folder-card.is-drop-target {
+  background: rgba(47, 125, 102, 0.08);
 }
 
 .main-column {
@@ -471,6 +513,10 @@ p {
   font-size: clamp(2rem, 3vw, 3rem);
   line-height: 1.02;
   letter-spacing: -0.05em;
+}
+
+.event-title {
+  margin-bottom: 18px;
 }
 
 .detail-meta {
