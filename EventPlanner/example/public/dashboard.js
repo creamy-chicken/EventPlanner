@@ -2,8 +2,10 @@ const ACCESS_STORAGE_KEY = "eventPlannerUser";
 const THEME_STORAGE_KEY = "eventPlannerTheme";
 const FOLDERS_STORAGE_KEY = "eventPlannerFolders";
 const CALENDAR_REFRESH_MS = 15000;
-const FREE_EVENT_COLOR = "#2f7d66";
-const BUSY_EVENT_COLOR = "#b33a3a";
+const FREE_EVENT_COLOR = "#87bfa4";
+const BUSY_EVENT_COLOR = "#d69a9a";
+const FREE_EVENT_BG = "#dfeee5";
+const BUSY_EVENT_BG = "#f2dddd";
 
 const accessGate = document.getElementById("accessGate");
 const accessForm = document.getElementById("accessForm");
@@ -275,6 +277,12 @@ function eventAccentColor(event) {
     : FREE_EVENT_COLOR;
 }
 
+function eventSurfaceColor(event) {
+  return String(event?.availability || "").toLowerCase() === "busy"
+    ? BUSY_EVENT_BG
+    : FREE_EVENT_BG;
+}
+
 function calendarChipColor(event) {
   return eventAccentColor(event);
 }
@@ -374,6 +382,7 @@ function renderEventNavItem(event) {
       data-event-id="${event.id}"
       data-draggable-event="${event.id}"
       draggable="true"
+      style="background: ${escapeHtml(eventSurfaceColor(event))}; border-color: ${escapeHtml(eventAccentColor(event))};"
     >
       <span class="event-nav-row">
         <span class="event-nav-marker" style="background: ${escapeHtml(eventAccentColor(event))}"></span>
@@ -517,7 +526,10 @@ function renderSelectedEvent() {
   const currentResponse = (selected.rsvps || {})[currentUser] || "";
 
   selectedEventEl.innerHTML = `
-    <article class="event-detail">
+    <article
+      class="event-detail"
+      style="background: ${escapeHtml(eventSurfaceColor(selected))}; border: 1px solid ${escapeHtml(eventAccentColor(selected))}; padding: 18px 20px;"
+    >
       <div class="detail-meta">
         <span>Posted by ${escapeHtml(selected.createdBy)}</span>
         <span>${escapeHtml(new Date(selected.createdAt).toLocaleString())}</span>
@@ -538,7 +550,7 @@ function renderSelectedEvent() {
           : ""
       }
 
-      <h2 class="event-title" style="color: ${escapeHtml(eventAccentColor(selected))}">
+      <h2 class="event-title">
         ${escapeHtml(selected.title)}
       </h2>
 
@@ -765,12 +777,15 @@ function renderRecurringEvents() {
   }
 
   recurringList.innerHTML = recurringEvents.map((event) => `
-    <article class="recurring-card">
+    <article
+      class="recurring-card"
+      style="background: ${escapeHtml(eventSurfaceColor(event))}; border: 1px solid ${escapeHtml(eventAccentColor(event))}; padding: 18px 20px;"
+    >
       <div class="detail-meta">
         <span>Planned by ${escapeHtml(event.createdBy)}</span>
         <span>${escapeHtml(new Date(event.createdAt).toLocaleDateString())}</span>
       </div>
-      <h3 class="event-title" style="color: ${escapeHtml(eventAccentColor(event))}">
+      <h3 class="event-title">
         ${escapeHtml(event.title)}
       </h3>
       ${
