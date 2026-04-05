@@ -47,6 +47,10 @@ body {
   display: none;
 }
 
+.is-hidden {
+  display: none !important;
+}
+
 .access-panel {
   width: min(520px, 100%);
   padding: 28px;
@@ -101,7 +105,8 @@ body {
 
 button,
 input,
-textarea {
+textarea,
+select {
   font: inherit;
 }
 
@@ -328,7 +333,8 @@ p {
 }
 
 .event-form input,
-.event-form textarea {
+.event-form textarea,
+.event-form select {
   width: 100%;
   padding: 15px 16px;
   border-radius: 0;
@@ -344,7 +350,8 @@ p {
 }
 
 .event-form input:focus,
-.event-form textarea:focus {
+.event-form textarea:focus,
+.event-form select:focus {
   border-color: rgba(47, 125, 102, 0.45);
 }
 
@@ -352,6 +359,10 @@ p {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
+}
+
+.form-grid--triple {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .form-actions {
@@ -448,6 +459,39 @@ p {
 .calendar-grid {
   display: grid;
   gap: 16px;
+}
+
+.recurring-composer {
+  margin-bottom: 18px;
+}
+
+.recurring-end-row {
+  display: flex;
+  align-items: end;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.recurring-end-row label {
+  flex: 1 1 220px;
+}
+
+.recurring-list {
+  display: grid;
+  gap: 18px;
+}
+
+.recurring-card h3 {
+  margin-top: 14px;
+  font-size: 1.8rem;
+  line-height: 1.1;
+}
+
+.recurring-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 18px;
 }
 
 .rsvp-block {
@@ -584,6 +628,13 @@ p {
   background: rgba(47, 125, 102, 0.08);
 }
 
+.calendar-chip-marker {
+  display: block;
+  width: 100%;
+  height: 6px;
+  margin-bottom: 8px;
+}
+
 .calendar-chip strong,
 .calendar-chip span {
   display: block;
@@ -593,6 +644,12 @@ p {
   margin-top: 4px;
   color: var(--muted);
   font-size: 0.88rem;
+}
+
+.calendar-chip-note {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.72rem;
 }
 
 .calendar-empty {
@@ -636,6 +693,66 @@ p {
   border-color: rgba(47, 125, 102, 0.45);
 }
 
+.theme-dark {
+  --bg: #111614;
+  --panel: rgba(20, 27, 24, 0.92);
+  --panel-strong: #18201d;
+  --ink: #edf5f1;
+  --muted: #a5b8af;
+  --line: rgba(237, 245, 241, 0.12);
+  --shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+  background:
+    radial-gradient(circle at top left, rgba(47, 125, 102, 0.18), transparent 28%),
+    radial-gradient(circle at right 10%, rgba(253, 180, 98, 0.1), transparent 24%),
+    linear-gradient(180deg, #0d1211 0%, var(--bg) 48%, #151c19 100%);
+}
+
+.theme-dark body,
+body.theme-dark {
+  color: var(--ink);
+}
+
+body.theme-dark .panel,
+body.theme-dark .access-panel,
+body.theme-dark .detail-card,
+body.theme-dark .info-block,
+body.theme-dark .reply-card,
+body.theme-dark .calendar-cell,
+body.theme-dark .rsvp-item,
+body.theme-dark .event-nav-item,
+body.theme-dark .calendar-chip {
+  border-color: rgba(237, 245, 241, 0.12);
+}
+
+body.theme-dark .welcome-text,
+body.theme-dark .view-toggle,
+body.theme-dark .secondary-btn,
+body.theme-dark .toggle-btn.is-active,
+body.theme-dark .event-nav-item,
+body.theme-dark .rsvp-btn,
+body.theme-dark .rsvp-item {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink);
+}
+
+body.theme-dark .event-form input,
+body.theme-dark .event-form textarea,
+body.theme-dark .event-form select,
+body.theme-dark .reply-form textarea,
+body.theme-dark .access-form input {
+  background: #121917;
+  color: var(--ink);
+}
+
+body.theme-dark .calendar-cell--blank {
+  border-color: rgba(237, 245, 241, 0.08);
+}
+
+body.theme-dark .calendar-cell--today,
+body.theme-dark .rsvp-btn.is-active {
+  background: rgba(47, 125, 102, 0.18);
+}
+
 @media (max-width: 1040px) {
   .dashboard-grid {
     grid-template-columns: 1fr;
@@ -661,6 +778,8 @@ p {
 
   .form-grid,
   .detail-grid,
+  .form-grid--triple,
+  .recurring-meta-grid,
   .calendar-grid {
     grid-template-columns: 1fr;
   }

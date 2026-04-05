@@ -1,4 +1,5 @@
 const ACCESS_STORAGE_KEY = "eventPlannerUser";
+const THEME_STORAGE_KEY = "eventPlannerTheme";
 
 const accessGate = document.getElementById("accessGate");
 const accessForm = document.getElementById("accessForm");
@@ -23,16 +24,35 @@ const calendarGrid = document.getElementById("calendarGrid");
 const calendarMonthLabel = document.getElementById("calendarMonthLabel");
 const prevMonthBtn = document.getElementById("prevMonthBtn");
 const nextMonthBtn = document.getElementById("nextMonthBtn");
+const recurringList = document.getElementById("recurringList");
+const recurringForm = document.getElementById("recurringForm");
+const recurringComposer = document.getElementById("recurringComposer");
+const recurringTitleInput = document.getElementById("recurringTitleInput");
+const recurringFrequencyInput = document.getElementById("recurringFrequencyInput");
+const recurringDayField = document.getElementById("recurringDayField");
+const recurringDayInput = document.getElementById("recurringDayInput");
+const recurringTimeInput = document.getElementById("recurringTimeInput");
+const recurringEndDateField = document.getElementById("recurringEndDateField");
+const recurringEndDateInput = document.getElementById("recurringEndDateInput");
+const recurringWhereInput = document.getElementById("recurringWhereInput");
+const recurringExtraInfoInput = document.getElementById("recurringExtraInfoInput");
+const recurringStatusMessage = document.getElementById("recurringStatusMessage");
+const toggleRecurringFormBtn = document.getElementById("toggleRecurringFormBtn");
+const toggleRecurringEndDateBtn = document.getElementById("toggleRecurringEndDateBtn");
 const feedTab = document.getElementById("feedTab");
 const calendarTab = document.getElementById("calendarTab");
+const recurringTab = document.getElementById("recurringTab");
 const feedView = document.getElementById("feedView");
 const calendarView = document.getElementById("calendarView");
+const recurringView = document.getElementById("recurringView");
+const themeBtn = document.getElementById("themeBtn");
 const logoutBtn = document.getElementById("logoutBtn");
 
 let currentUser = "";
 let pendingName = "";
 let accessStep = "name";
 let events = [];
+let recurringEvents = [];
 let selectedEventId = null;
 let displayedMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
@@ -44,6 +64,14 @@ function escapeHtml(text) {
 
 function normalizeName(value) {
   return String(value || "").trim().toLowerCase();
+}
+
+function titleCase(value) {
+  return String(value || "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }
 
 function parseLocalDateTime(value) {
@@ -115,6 +143,82 @@ function monthLabel(date) {
   });
 }
 
+function formatDateOnly(value) {
+  if (!value) return "";
+  const date = parseLocalDateTime(`${value}T00:00`);
+  if (!date) return value;
+
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  });
+}
+
+function recurringOccursOnDate(event, date) {
+  const frequency = String(event.frequency || "").toLowerCase();
+  const weekday = date.getDay();
+  const dayNames = [
+    "sunday",
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday"
+  ];
+  const eventCreatedDate = new Date(event.createdAt);
+  const createdDay = new Date(
+    eventCreatedDate.getFullYear(),
+    eventCreatedDate.getMonth(),
+    eventCreatedDate.getDate()
+  );
+  const targetDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+  if (event.endDate && targetDay > parseLocalDateTime(`${event.endDate}T23:59`)) {
+    return false;
+  }
+
+  if (targetDay < createdDay) {
+    return false;
+  }
+
+  if (frequency === "daily") {
+    return true;
+  }
+
+  if (frequency === "every weekday") {
+    return weekday >= 1 && weekday <= 5;
+  }
+
+  if (frequency === "every weekend") {
+    return weekday === 0 || weekday === 6;
+  }
+
+  if (frequency === "weekly") {
+    return dayNames[weekday] === event.day;
+  }
+
+  if (frequency === "biweekly") {
+    if (dayNames[weekday] !== event.day) {
+      return false;
+    }
+
+    const diffDays = Math.floor((targetDay - createdDay) / 86400000);
+    return diffDays >= 0 && Math.floor(diffDays / 7) % 2 === 0;
+  }
+
+  if (frequency === "monthly") {
+    if (dayNames[weekday] !== event.day) {
+      return false;
+    }
+
+    return targetDay.getDate() <= 7;
+  }
+
+  return false;
+}
+
 function isPastEvent(event) {
   const date = parseLocalDateTime(event.when);
   return date ? date.getTime() < Date.now() : false;
@@ -124,6 +228,27 @@ function sortNewestFirst(list) {
   return [...list].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
+}
+
+function applyTheme(theme) {
+  const nextTheme = theme === "dark" ? "dark" : "light";
+  document.body.classList.toggle("theme-dark", nextTheme === "dark");
+  localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+  themeBtn.textContent = nextTheme === "dark" ? "Light mode" : "Dark mode";
+}
+
+function eventAccentStyle(event) {
+  return event && event.color ? `style="border-left: 6px solid ${escapeHtml(event.color)};"` : "";
+}
+
+function requiresRecurringDay(frequency) {
+  return ["weekly", "biweekly", "monthly"].includes(String(frequency || "").toLowerCase());
+}
+
+function syncRecurringFormState() {
+  const needsDay = requiresRecurringDay(recurringFrequencyInput.value);
+  recurringDayField.classList.toggle("is-hidden", !needsDay);
+  recurringDayInput.required = needsDay;
 }
 
 function setCurrentUser(username) {
@@ -140,7 +265,6 @@ function resetAccessForm() {
     "Start with your name. Then answer your favorite-color question to enter the site.";
   accessLabel.textContent = "Your name";
   accessInput.value = "";
-  accessInput.type = "text";
   accessStatus.textContent = "";
   accessSubmit.textContent = "Continue";
 }
@@ -151,7 +275,7 @@ function openGate() {
   welcomeEl.textContent = "Waiting for name";
 }
 
-async function verifyStoredUser() {
+function verifyStoredUser() {
   const storedName = localStorage.getItem(ACCESS_STORAGE_KEY);
   if (!storedName) {
     openGate();
@@ -161,6 +285,16 @@ async function verifyStoredUser() {
   currentUser = storedName;
   welcomeEl.textContent = storedName;
   accessGate.classList.add("is-hidden");
+}
+
+function showView(view) {
+  feedTab.classList.toggle("is-active", view === "feed");
+  calendarTab.classList.toggle("is-active", view === "calendar");
+  recurringTab.classList.toggle("is-active", view === "recurring");
+  feedView.classList.toggle("is-hidden", view !== "feed");
+  calendarView.classList.toggle("is-hidden", view !== "calendar");
+  recurringView.classList.toggle("is-hidden", view !== "recurring");
+  eventForm.closest(".composer-panel").classList.toggle("is-hidden", view === "recurring");
 }
 
 function selectEvent(eventId) {
@@ -179,6 +313,7 @@ function renderNavList(container, list) {
       class="event-nav-item${event.id === selectedEventId ? " is-selected" : ""}"
       type="button"
       data-event-id="${event.id}"
+      ${eventAccentStyle(event)}
     >
       <span class="event-nav-title">${escapeHtml(event.title)}</span>
       <span class="event-nav-meta">${escapeHtml(formatWhen(event.when))}</span>
@@ -201,16 +336,13 @@ function renderSelectedEvent() {
 
   const selected = events.find((event) => event.id === selectedEventId) || events[0];
   selectedEventId = selected.id;
-  const canReply = selected.createdBy === currentUser;
   const canDelete = selected.createdBy === currentUser;
   const replies = (selected.replies || []).filter((reply) => reply.username);
-  const rsvps = Object.entries(selected.rsvps || {}).sort((a, b) =>
-    a[0].localeCompare(b[0])
-  );
+  const rsvps = Object.entries(selected.rsvps || {}).sort((a, b) => a[0].localeCompare(b[0]));
   const currentResponse = (selected.rsvps || {})[currentUser] || "";
 
   selectedEventEl.innerHTML = `
-    <article class="event-detail">
+    <article class="event-detail" ${eventAccentStyle(selected)}>
       <div class="detail-meta">
         <span>Posted by ${escapeHtml(selected.createdBy)}</span>
         <span>${escapeHtml(new Date(selected.createdAt).toLocaleString())}</span>
@@ -220,11 +352,7 @@ function renderSelectedEvent() {
         canDelete
           ? `
             <div class="detail-actions">
-              <button
-                class="danger-btn"
-                type="button"
-                data-delete-event="${selected.id}"
-              >
+              <button class="danger-btn" type="button" data-delete-event="${selected.id}">
                 Delete event
               </button>
             </div>
@@ -302,27 +430,21 @@ function renderSelectedEvent() {
             <h3>Event thread</h3>
           </div>
         </div>
-        ${
-          canReply
-            ? `
-              <form class="reply-form" data-reply-form="${selected.id}">
-                <label>
-                  <span>Add reply</span>
-                  <textarea
-                    name="replyBody"
-                    rows="4"
-                    placeholder="Post an update, answer questions, or add a note to your event."
-                    required
-                  ></textarea>
-                </label>
-                <div class="form-actions">
-                  <p class="status-message" data-reply-status="${selected.id}"></p>
-                  <button class="primary-btn" type="submit">Post reply</button>
-                </div>
-              </form>
-            `
-            : ""
-        }
+        <form class="reply-form" data-reply-form="${selected.id}">
+          <label>
+            <span>Add reply</span>
+            <textarea
+              name="replyBody"
+              rows="4"
+              placeholder="Post an update, answer questions, or add a note to this event."
+              required
+            ></textarea>
+          </label>
+          <div class="form-actions">
+            <p class="status-message" data-reply-status="${selected.id}"></p>
+            <button class="primary-btn" type="submit">Post reply</button>
+          </div>
+        </form>
         ${
           replies.length
             ? `<div class="reply-list">${replies.map((reply) => `
@@ -353,6 +475,8 @@ function renderCalendar() {
 
   const year = displayedMonth.getFullYear();
   const month = displayedMonth.getMonth();
+  const monthStart = new Date(year, month, 1);
+  const monthEnd = new Date(year, month + 1, 0);
   const firstDay = new Date(year, month, 1);
   const startWeekday = firstDay.getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -366,22 +490,36 @@ function renderCalendar() {
 
   for (let day = 1; day <= daysInMonth; day += 1) {
     const key = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const recurringMatches = recurringEvents
+      .filter((event) => recurringOccursOnDate(event, new Date(year, month, day)))
+      .map((event) => ({
+        ...event,
+        when: `${key}T${event.time}`,
+        isRecurring: true
+      }));
     const dayEvents = (grouped[key] || []).sort((a, b) => a.when.localeCompare(b.when));
+    const mergedDayEvents = [...dayEvents, ...recurringMatches].sort((a, b) => a.when.localeCompare(b.when));
     const isToday = todayKey === key;
 
     cells.push(`
       <section class="calendar-cell${isToday ? " calendar-cell--today" : ""}">
         <div class="calendar-cell-head">
           <span class="calendar-date-number">${day}</span>
-          <span class="calendar-event-count">${dayEvents.length ? `${dayEvents.length} planned` : ""}</span>
+          <span class="calendar-event-count">${mergedDayEvents.length ? `${mergedDayEvents.length} planned` : ""}</span>
         </div>
         <div class="calendar-cell-events">
           ${
-            dayEvents.length
-              ? dayEvents.map((event) => `
-                  <button class="calendar-chip" type="button" data-event-id="${event.id}">
+            mergedDayEvents.length
+              ? mergedDayEvents.map((event) => `
+                  <button
+                    class="calendar-chip"
+                    type="button"
+                    ${event.isRecurring ? `data-recurring-event="${event.id}"` : `data-event-id="${event.id}"`}
+                  >
+                    <span class="calendar-chip-marker" style="background: ${escapeHtml(event.color || "#d9d9d9")}"></span>
                     <strong>${escapeHtml(event.title)}</strong>
                     <span>${escapeHtml(formatTime(event.when))}</span>
+                    ${event.isRecurring ? '<span class="calendar-chip-note">Recurring</span>' : ""}
                   </button>
                 `).join("")
               : '<p class="calendar-empty">No events</p>'
@@ -392,6 +530,82 @@ function renderCalendar() {
   }
 
   calendarGrid.innerHTML = cells.join("");
+}
+
+function renderRecurringEvents() {
+  if (!recurringEvents.length) {
+    recurringList.innerHTML = `
+      <div class="empty-state">
+        <p class="app-kicker">No recurring plans yet</p>
+        <h2>Build a routine</h2>
+        <p>Use the button above to add a weekly, biweekly, or monthly plan.</p>
+      </div>
+    `;
+    return;
+  }
+
+  recurringList.innerHTML = recurringEvents.map((event) => `
+    <article class="recurring-card" ${eventAccentStyle(event)}>
+      <div class="detail-meta">
+        <span>Planned by ${escapeHtml(event.createdBy)}</span>
+        <span>${escapeHtml(new Date(event.createdAt).toLocaleDateString())}</span>
+      </div>
+      <h3>${escapeHtml(event.title)}</h3>
+      <div class="recurring-meta-grid">
+        <div class="detail-card">
+          <h3>Frequency</h3>
+          <p>${escapeHtml(titleCase(event.frequency))}</p>
+        </div>
+        ${
+          event.day
+            ? `
+              <div class="detail-card">
+                <h3>Day</h3>
+                <p>${escapeHtml(titleCase(event.day))}</p>
+              </div>
+            `
+            : ""
+        }
+        <div class="detail-card">
+          <h3>Time</h3>
+          <p>${escapeHtml(formatTime(`2026-01-01T${event.time}`))}</p>
+        </div>
+        <div class="detail-card">
+          <h3>Where</h3>
+          <p>${escapeHtml(event.where)}</p>
+        </div>
+        ${
+          event.endDate
+            ? `
+              <div class="detail-card">
+                <h3>End date</h3>
+                <p>${escapeHtml(formatDateOnly(event.endDate))}</p>
+              </div>
+            `
+            : ""
+        }
+      </div>
+      <section class="info-block">
+        <h3>Extra info</h3>
+        <p>${escapeHtml(event.extraInfo || "No extra info added yet.")}</p>
+      </section>
+      ${
+        event.createdBy === currentUser
+          ? `
+            <div class="detail-actions">
+              <button
+                class="danger-btn"
+                type="button"
+                data-delete-recurring-event="${event.id}"
+              >
+                Delete recurring event
+              </button>
+            </div>
+          `
+          : ""
+      }
+    </article>
+  `).join("");
 }
 
 function renderAll() {
@@ -406,6 +620,7 @@ function renderAll() {
   renderNavList(pastList, past);
   renderSelectedEvent();
   renderCalendar();
+  renderRecurringEvents();
 }
 
 async function loadEvents() {
@@ -429,36 +644,48 @@ async function loadEvents() {
   renderAll();
 }
 
-feedTab.addEventListener("click", () => {
-  feedTab.classList.add("is-active");
-  calendarTab.classList.remove("is-active");
-  feedView.classList.remove("is-hidden");
-  calendarView.classList.add("is-hidden");
-});
+async function loadRecurringEvents() {
+  const res = await fetch("/recurring-events");
+  if (!res.ok) {
+    recurringStatusMessage.textContent = "Could not load recurring plans.";
+    return;
+  }
 
-calendarTab.addEventListener("click", () => {
-  calendarTab.classList.add("is-active");
-  feedTab.classList.remove("is-active");
-  calendarView.classList.remove("is-hidden");
-  feedView.classList.add("is-hidden");
-});
+  const data = await res.json();
+  recurringEvents = data.recurringEvents || [];
+  renderRecurringEvents();
+}
+
+feedTab.addEventListener("click", () => showView("feed"));
+calendarTab.addEventListener("click", () => showView("calendar"));
+recurringTab.addEventListener("click", () => showView("recurring"));
+recurringFrequencyInput.addEventListener("change", syncRecurringFormState);
 
 prevMonthBtn.addEventListener("click", () => {
-  displayedMonth = new Date(
-    displayedMonth.getFullYear(),
-    displayedMonth.getMonth() - 1,
-    1
-  );
+  displayedMonth = new Date(displayedMonth.getFullYear(), displayedMonth.getMonth() - 1, 1);
   renderCalendar();
 });
 
 nextMonthBtn.addEventListener("click", () => {
-  displayedMonth = new Date(
-    displayedMonth.getFullYear(),
-    displayedMonth.getMonth() + 1,
-    1
-  );
+  displayedMonth = new Date(displayedMonth.getFullYear(), displayedMonth.getMonth() + 1, 1);
   renderCalendar();
+});
+
+toggleRecurringFormBtn.addEventListener("click", () => {
+  recurringComposer.classList.toggle("is-hidden");
+});
+
+toggleRecurringEndDateBtn.addEventListener("click", () => {
+  const isHidden = recurringEndDateField.classList.toggle("is-hidden");
+  toggleRecurringEndDateBtn.textContent = isHidden ? "Add end date" : "Remove end date";
+  if (isHidden) {
+    recurringEndDateInput.value = "";
+  }
+});
+
+themeBtn.addEventListener("click", () => {
+  const currentTheme = localStorage.getItem(THEME_STORAGE_KEY) || "light";
+  applyTheme(currentTheme === "dark" ? "light" : "dark");
 });
 
 logoutBtn.addEventListener("click", () => {
@@ -478,20 +705,18 @@ eventForm.addEventListener("submit", async (event) => {
 
   statusMessage.textContent = "Posting event...";
 
-  const payload = {
-    title: titleInput.value.trim(),
-    when: whenInput.value,
-    where: whereInput.value.trim(),
-    extraInfo: extraInfoInput.value.trim(),
-    username: currentUser
-  };
-
   const res = await fetch("/events", {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
     },
-    body: JSON.stringify(payload)
+    body: JSON.stringify({
+      title: titleInput.value.trim(),
+      when: whenInput.value,
+      where: whereInput.value.trim(),
+      extraInfo: extraInfoInput.value.trim(),
+      username: currentUser
+    })
   });
 
   if (!res.ok) {
@@ -508,19 +733,78 @@ eventForm.addEventListener("submit", async (event) => {
   renderAll();
 });
 
+recurringForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  if (!currentUser) {
+    recurringStatusMessage.textContent = "Enter your name first.";
+    openGate();
+    return;
+  }
+
+  recurringStatusMessage.textContent = "Saving recurring plan...";
+
+  const res = await fetch("/recurring-events", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      title: recurringTitleInput.value.trim(),
+      frequency: recurringFrequencyInput.value,
+      day: requiresRecurringDay(recurringFrequencyInput.value) ? recurringDayInput.value : "",
+      time: recurringTimeInput.value,
+      endDate: recurringEndDateField.classList.contains("is-hidden")
+        ? ""
+        : recurringEndDateInput.value,
+      where: recurringWhereInput.value.trim(),
+      extraInfo: recurringExtraInfoInput.value.trim(),
+      username: currentUser
+    })
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: "Could not save recurring plan." }));
+    recurringStatusMessage.textContent = error.error || "Could not save recurring plan.";
+    return;
+  }
+
+  const data = await res.json();
+  recurringEvents = [data.recurringEvent, ...recurringEvents];
+  recurringForm.reset();
+  recurringStatusMessage.textContent = "Recurring plan saved.";
+  recurringComposer.classList.add("is-hidden");
+  recurringEndDateField.classList.add("is-hidden");
+  toggleRecurringEndDateBtn.textContent = "Add end date";
+  syncRecurringFormState();
+  renderRecurringEvents();
+});
+
 document.addEventListener("click", (event) => {
   const deleteTrigger = event.target.closest("[data-delete-event]");
   if (deleteTrigger) {
-    const eventId = Number(deleteTrigger.getAttribute("data-delete-event"));
-    deleteEvent(eventId);
+    deleteEvent(Number(deleteTrigger.getAttribute("data-delete-event")));
+    return;
+  }
+
+  const deleteRecurringTrigger = event.target.closest("[data-delete-recurring-event]");
+  if (deleteRecurringTrigger) {
+    deleteRecurringEvent(Number(deleteRecurringTrigger.getAttribute("data-delete-recurring-event")));
     return;
   }
 
   const rsvpTrigger = event.target.closest("[data-rsvp-event]");
   if (rsvpTrigger) {
-    const eventId = Number(rsvpTrigger.getAttribute("data-rsvp-event"));
-    const response = rsvpTrigger.getAttribute("data-rsvp-response");
-    submitRsvp(eventId, response);
+    submitRsvp(
+      Number(rsvpTrigger.getAttribute("data-rsvp-event")),
+      rsvpTrigger.getAttribute("data-rsvp-response")
+    );
+    return;
+  }
+
+  const recurringTrigger = event.target.closest("[data-recurring-event]");
+  if (recurringTrigger) {
+    showView("recurring");
     return;
   }
 
@@ -530,7 +814,7 @@ document.addEventListener("click", (event) => {
   }
 
   selectEvent(Number(trigger.getAttribute("data-event-id")));
-  feedTab.click();
+  showView("feed");
 });
 
 document.addEventListener("submit", async (event) => {
@@ -583,8 +867,7 @@ async function deleteEvent(eventId) {
     return;
   }
 
-  const confirmed = window.confirm("Delete this event?");
-  if (!confirmed) {
+  if (!window.confirm("Delete this event?")) {
     return;
   }
 
@@ -593,9 +876,7 @@ async function deleteEvent(eventId) {
     headers: {
       "Content-Type": "application/json"
     },
-    body: JSON.stringify({
-      username: currentUser
-    })
+    body: JSON.stringify({ username: currentUser })
   });
 
   if (!res.ok) {
@@ -608,6 +889,35 @@ async function deleteEvent(eventId) {
   selectedEventId = events.length ? events[0].id : null;
   statusMessage.textContent = "Event deleted.";
   renderAll();
+}
+
+async function deleteRecurringEvent(eventId) {
+  if (!currentUser) {
+    openGate();
+    return;
+  }
+
+  if (!window.confirm("Delete this recurring event?")) {
+    return;
+  }
+
+  const res = await fetch(`/recurring-events/${eventId}`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ username: currentUser })
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: "Could not delete recurring event." }));
+    recurringStatusMessage.textContent = error.error || "Could not delete recurring event.";
+    return;
+  }
+
+  recurringEvents = recurringEvents.filter((event) => event.id !== eventId);
+  recurringStatusMessage.textContent = "Recurring event deleted.";
+  renderRecurringEvents();
 }
 
 async function submitRsvp(eventId, response) {
@@ -673,9 +983,7 @@ accessForm.addEventListener("submit", async (event) => {
     accessPrompt.textContent = data.question;
     accessLabel.textContent = "Answer";
     accessInput.value = "";
-    accessInput.type = "text";
     accessSubmit.textContent = "Enter site";
-    accessStatus.textContent = "";
     return;
   }
 
@@ -709,4 +1017,7 @@ accessForm.addEventListener("submit", async (event) => {
 });
 
 verifyStoredUser();
+applyTheme(localStorage.getItem(THEME_STORAGE_KEY) || "light");
+syncRecurringFormState();
 loadEvents();
+loadRecurringEvents();

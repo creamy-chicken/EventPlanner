@@ -5,12 +5,20 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const publicDir = path.join(__dirname, "public");
 let nextEventId = 1;
+let nextRecurringEventId = 1;
 
 const configuredMemberAnswers = {
   dasha: "black",
   sanjana: "green",
-  leah: "blue",
+  leah: "green",
   arthur: "bombs"
+};
+
+const memberColors = {
+  dasha: "#e78ac3",
+  sanjana: "#7fc97f",
+  leah: "#80b1d3",
+  arthur: "#fdb462"
 };
 
 const memberAnswers = Object.fromEntries(
@@ -25,6 +33,7 @@ function normalizeName(value) {
 }
 
 const events = [];
+const recurringEvents = [];
 
 function displayName(value) {
   const trimmed = String(value || "").trim();
@@ -81,9 +90,32 @@ function findEventById(eventId) {
   return events.find((event) => event.id === Number(eventId));
 }
 
+function findRecurringEventById(eventId) {
+  return recurringEvents.find((event) => event.id === Number(eventId));
+}
+
 function requireKnownUser(name) {
   const normalized = normalizeName(name);
   return normalized && memberAnswers[normalized] ? normalized : "";
+}
+
+function userColor(name) {
+  return memberColors[normalizeName(name)] || "#d9d9d9";
+}
+
+function isValidDateOnly(value) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
+
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+
+  return (
+    date.getFullYear() === year &&
+    date.getMonth() === month - 1 &&
+    date.getDate() === day
+  );
 }
 
 app.use(express.json());
@@ -129,7 +161,8 @@ app.post("/verify-user", (req, res) => {
   }
 
   res.json({
-    username: displayName(name)
+    username: displayName(name),
+    color: userColor(name)
   });
 });
 
@@ -139,6 +172,14 @@ app.get("/events", (req, res) => {
   );
 
   res.json({ events: sortedEvents });
+});
+
+app.get("/recurring-events", (req, res) => {
+  const sortedEvents = [...recurringEvents].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+
+  res.json({ recurringEvents: sortedEvents });
 });
 
 app.post("/events", (req, res) => {
@@ -168,6 +209,7 @@ app.post("/events", (req, res) => {
     where: String(where).trim(),
     extraInfo: String(extraInfo || "").trim(),
     createdBy: displayName(createdBy),
+    color: userColor(createdBy),
     createdAt: new Date().toISOString(),
     replies: [],
     rsvps: {}
@@ -187,12 +229,6 @@ app.post("/events/:id/replies", (req, res) => {
 
   if (!username) {
     return res.status(401).json({ error: "A verified name is required." });
-  }
-
-  if (event.createdBy !== displayName(username)) {
-    return res.status(403).json({
-      error: "Only the original event owner can reply here."
-    });
   }
 
   const body = String(req.body.body || "").trim();
@@ -231,6 +267,106 @@ app.post("/events/:id/rsvp", (req, res) => {
 
   event.rsvps[displayName(username)] = response;
   res.json({ event });
+});
+
+app.post("/recurring-events", (req, res) => {
+  const { title, frequency, day, time, where, extraInfo, username, endDate } = req.body;
+  const createdBy = requireKnownUser(username);
+
+  if (!createdBy) {
+    return res.status(401).json({ error: "A verified name is required." });
+  }
+
+  if (!title || !frequency || !time || !where) {
+    return res.status(400).json({
+      error: "Title, frequency, time, and where are required."
+    });
+  }
+
+  const normalizedFrequency = String(frequency).trim().toLowerCase();
+  const normalizedDay = String(day).trim().toLowerCase();
+  const normalizedTime = String(time).trim();
+  const normalizedEndDate = String(endDate || "").trim();
+
+  const validFrequencies = [
+    "daily",
+    "weekly",
+    "biweekly",
+    "monthly",
+    "every weekday",
+    "every weekend"
+  ];
+  const validDays = [
+    "sunday",
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday"
+  ];
+
+  if (!validFrequencies.includes(normalizedFrequency)) {
+    return res.status(400).json({
+      error: "Frequency must be daily, weekly, biweekly, monthly, every weekday, or every weekend."
+    });
+  }
+
+  if (
+    ["weekly", "biweekly", "monthly"].includes(normalizedFrequency) &&
+    !validDays.includes(normalizedDay)
+  ) {
+    return res.status(400).json({ error: "Choose a valid weekday." });
+  }
+
+  if (!/^\d{2}:\d{2}$/.test(normalizedTime)) {
+    return res.status(400).json({ error: "Time must use HH:MM format." });
+  }
+
+  if (normalizedEndDate && !isValidDateOnly(normalizedEndDate)) {
+    return res.status(400).json({ error: "End date must use YYYY-MM-DD format." });
+  }
+
+  const recurringEvent = {
+    id: nextRecurringEventId++,
+    title: String(title).trim(),
+    frequency: normalizedFrequency,
+    day: validDays.includes(normalizedDay) ? normalizedDay : "",
+    time: normalizedTime,
+    endDate: normalizedEndDate,
+    where: String(where).trim(),
+    extraInfo: String(extraInfo || "").trim(),
+    createdBy: displayName(createdBy),
+    color: userColor(createdBy),
+    createdAt: new Date().toISOString()
+  };
+
+  recurringEvents.push(recurringEvent);
+  res.status(201).json({ recurringEvent });
+});
+
+app.delete("/recurring-events/:id", (req, res) => {
+  const event = findRecurringEventById(req.params.id);
+  const username = requireKnownUser(req.body.username);
+
+  if (!event) {
+    return res.status(404).json({ error: "Recurring event not found." });
+  }
+
+  if (!username) {
+    return res.status(401).json({ error: "A verified name is required." });
+  }
+
+  if (event.createdBy !== displayName(username)) {
+    return res.status(403).json({
+      error: "Only the original event owner can delete this recurring event."
+    });
+  }
+
+  const eventIndex = recurringEvents.findIndex((item) => item.id === event.id);
+  recurringEvents.splice(eventIndex, 1);
+
+  res.json({ success: true, deletedRecurringEventId: event.id });
 });
 
 app.delete("/events/:id", (req, res) => {

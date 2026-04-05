@@ -41,8 +41,10 @@
         <div class="view-toggle" role="tablist" aria-label="View switcher">
           <button id="feedTab" class="toggle-btn is-active" type="button">Event feed</button>
           <button id="calendarTab" class="toggle-btn" type="button">Calendar view</button>
+          <button id="recurringTab" class="toggle-btn" type="button">Recurring plans</button>
         </div>
 
+        <button id="themeBtn" class="secondary-btn" type="button">Dark mode</button>
         <button id="logoutBtn" class="secondary-btn" type="button">Change user</button>
       </div>
     </header>
@@ -141,6 +143,90 @@
             <span>Sat</span>
           </div>
           <div id="calendarGrid" class="calendar-grid"></div>
+        </section>
+
+        <section id="recurringView" class="panel calendar-panel view-panel is-hidden">
+          <div class="section-head">
+            <div>
+              <p class="app-kicker">Recurring plans</p>
+              <h2>Repeatable events</h2>
+            </div>
+            <button id="toggleRecurringFormBtn" class="primary-btn" type="button">
+              Plan recurring event
+            </button>
+          </div>
+
+          <section id="recurringComposer" class="recurring-composer is-hidden">
+            <form id="recurringForm" class="event-form">
+              <label>
+                <span>Title</span>
+                <input id="recurringTitleInput" type="text" required />
+              </label>
+
+              <div class="form-grid form-grid--triple">
+                <label>
+                  <span>Frequency</span>
+                  <select id="recurringFrequencyInput" required>
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="biweekly">Biweekly</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="every weekday">Every weekday</option>
+                    <option value="every weekend">Every weekend</option>
+                  </select>
+                </label>
+
+                <label id="recurringDayField">
+                  <span>Day</span>
+                  <select id="recurringDayInput" required>
+                    <option value="monday">Monday</option>
+                    <option value="tuesday">Tuesday</option>
+                    <option value="wednesday">Wednesday</option>
+                    <option value="thursday">Thursday</option>
+                    <option value="friday">Friday</option>
+                    <option value="saturday">Saturday</option>
+                    <option value="sunday">Sunday</option>
+                  </select>
+                </label>
+
+                <label>
+                  <span>Time</span>
+                  <input id="recurringTimeInput" type="time" required />
+                </label>
+              </div>
+
+              <div class="recurring-end-row">
+                <button id="toggleRecurringEndDateBtn" class="secondary-btn" type="button">
+                  Add end date
+                </button>
+                <label id="recurringEndDateField" class="is-hidden">
+                  <span>End date</span>
+                  <input id="recurringEndDateInput" type="date" />
+                </label>
+              </div>
+
+              <label>
+                <span>Where</span>
+                <input id="recurringWhereInput" type="text" required />
+              </label>
+
+              <label>
+                <span>Extra info</span>
+                <textarea
+                  id="recurringExtraInfoInput"
+                  rows="4"
+                  placeholder="Add notes for the repeating plan."
+                ></textarea>
+              </label>
+
+              <div class="form-actions">
+                <p id="recurringStatusMessage" class="status-message"></p>
+                <button class="primary-btn" type="submit">Save recurring plan</button>
+              </div>
+            </form>
+          </section>
+
+          <div id="recurringList" class="recurring-list"></div>
         </section>
       </main>
     </div>
