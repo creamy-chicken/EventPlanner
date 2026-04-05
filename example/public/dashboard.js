@@ -4,8 +4,8 @@ const FOLDERS_STORAGE_KEY = "eventPlannerFolders";
 const CALENDAR_REFRESH_MS = 15000;
 const FREE_EVENT_COLOR = "#c3ef8c";
 const BUSY_EVENT_COLOR = "#e73f3f";
-const FREE_EVENT_BG = "#dfeee5";
-const BUSY_EVENT_BG = "#f2dddd";
+const FREE_EVENT_BG = "#e4eedf";
+const BUSY_EVENT_BG = "#f2e0dd";
 
 const accessGate = document.getElementById("accessGate");
 const accessForm = document.getElementById("accessForm");
@@ -510,18 +510,22 @@ function renderNavList(container, list) {
 }
 
 function renderSelectedEvent() {
-  if (!events.length) {
+  const visibleEvents = events.filter(
+    (event) => event.availability === selectedAvailability
+  );
+
+  if (!visibleEvents.length) {
     selectedEventEl.innerHTML = `
       <div class="empty-state">
         <p class="app-kicker">No event posts yet</p>
-        <h2>Start with your first plan</h2>
-        <p>Create an event above to populate the feed, calendar, and event menu.</p>
+        <h2>No ${escapeHtml(selectedAvailability)} events here yet</h2>
+        <p>Create an event above to populate this filtered view.</p>
       </div>
     `;
     return;
   }
 
-  const selected = events.find((event) => event.id === selectedEventId) || events[0];
+  const selected = visibleEvents.find((event) => event.id === selectedEventId) || visibleEvents[0];
   selectedEventId = selected.id;
   const canDelete = selected.createdBy === currentUser;
   const isEditing = editingEventId === selected.id;
@@ -938,16 +942,20 @@ function renderRecurringEvents() {
 
 function renderAll() {
   const sortedEvents = sortNewestFirst(events);
-  const upcoming = sortedEvents.filter(
-    (event) => !isPastEvent(event) && event.availability !== "busy"
+  const filteredEvents = sortedEvents.filter(
+    (event) => event.availability === selectedAvailability
   );
-  const personal = sortedEvents.filter(
+  const upcoming = filteredEvents.filter(
     (event) =>
       !isPastEvent(event) &&
-      event.availability === "busy" &&
-      event.createdBy === currentUser
+      !(selectedAvailability === "busy" && event.createdBy === currentUser)
   );
-  const past = sortedEvents.filter((event) => isPastEvent(event));
+  const personal = selectedAvailability === "busy"
+    ? filteredEvents.filter(
+        (event) => !isPastEvent(event) && event.createdBy === currentUser
+      )
+    : [];
+  const past = filteredEvents.filter((event) => isPastEvent(event));
 
   upcomingCount.textContent = String(upcoming.length);
   personalCount.textContent = String(personal.length);
