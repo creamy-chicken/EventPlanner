@@ -110,6 +110,28 @@
               ></textarea>
             </label>
 
+            <div class="availability-group">
+              <span>Your status for this event</span>
+              <div class="availability-actions">
+                <button
+                  id="availabilityFreeBtn"
+                  class="availability-btn is-active"
+                  type="button"
+                  data-availability-value="free"
+                >
+                  I am free this event
+                </button>
+                <button
+                  id="availabilityBusyBtn"
+                  class="availability-btn"
+                  type="button"
+                  data-availability-value="busy"
+                >
+                  I am busy for this event
+                </button>
+              </div>
+            </div>
+
             <div class="form-actions">
               <p id="statusMessage" class="status-message"></p>
               <button class="primary-btn" type="submit">Post event</button>
@@ -146,17 +168,7 @@
         </section>
 
         <section id="recurringView" class="panel calendar-panel view-panel is-hidden">
-          <div class="section-head">
-            <div>
-              <p class="app-kicker">Recurring plans</p>
-              <h2>Repeatable events</h2>
-            </div>
-            <button id="toggleRecurringFormBtn" class="primary-btn" type="button">
-              Plan recurring event
-            </button>
-          </div>
-
-          <section id="recurringComposer" class="recurring-composer is-hidden">
+          <section id="recurringComposer" class="recurring-composer">
             <form id="recurringForm" class="event-form">
               <label>
                 <span>Title</span>
@@ -196,6 +208,16 @@
               </div>
 
               <div class="recurring-end-row">
+                <button id="toggleRecurringEndTimeBtn" class="secondary-btn" type="button">
+                  Add end time
+                </button>
+                <label id="recurringEndTimeField" class="is-hidden">
+                  <span>End time</span>
+                  <input id="recurringEndTimeInput" type="time" />
+                </label>
+              </div>
+
+              <div class="recurring-end-row">
                 <button id="toggleRecurringEndDateBtn" class="secondary-btn" type="button">
                   Add end date
                 </button>
@@ -218,6 +240,26 @@
                   placeholder="Add notes for the repeating plan."
                 ></textarea>
               </label>
+
+              <div class="availability-group">
+                <span>Your status for this recurring plan</span>
+                <div class="availability-actions">
+                  <button
+                    id="recurringAvailabilityFreeBtn"
+                    class="availability-btn is-active"
+                    type="button"
+                  >
+                    I am free this event
+                  </button>
+                  <button
+                    id="recurringAvailabilityBusyBtn"
+                    class="availability-btn"
+                    type="button"
+                  >
+                    I am busy for this event
+                  </button>
+                </div>
+              </div>
 
               <div class="form-actions">
                 <p id="recurringStatusMessage" class="status-message"></p>

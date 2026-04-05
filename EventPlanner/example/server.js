@@ -183,7 +183,7 @@ app.get("/recurring-events", (req, res) => {
 });
 
 app.post("/events", (req, res) => {
-  const { title, when, where, extraInfo, username } = req.body;
+  const { title, when, where, extraInfo, username, availability } = req.body;
   const createdBy = requireKnownUser(username);
 
   if (!createdBy) {
@@ -202,12 +202,20 @@ app.post("/events", (req, res) => {
     });
   }
 
+  const normalizedAvailability = String(availability || "free").trim().toLowerCase();
+  if (!["free", "busy"].includes(normalizedAvailability)) {
+    return res.status(400).json({
+      error: "Availability must be free or busy."
+    });
+  }
+
   const newEvent = {
     id: nextEventId++,
     title: String(title).trim(),
     when: normalizeLocalDateTime(when),
     where: String(where).trim(),
     extraInfo: String(extraInfo || "").trim(),
+    availability: normalizedAvailability,
     createdBy: displayName(createdBy),
     color: userColor(createdBy),
     createdAt: new Date().toISOString(),
@@ -270,7 +278,18 @@ app.post("/events/:id/rsvp", (req, res) => {
 });
 
 app.post("/recurring-events", (req, res) => {
-  const { title, frequency, day, time, where, extraInfo, username, endDate } = req.body;
+  const {
+    title,
+    frequency,
+    day,
+    time,
+    endTime,
+    where,
+    extraInfo,
+    username,
+    endDate,
+    availability
+  } = req.body;
   const createdBy = requireKnownUser(username);
 
   if (!createdBy) {
@@ -286,7 +305,9 @@ app.post("/recurring-events", (req, res) => {
   const normalizedFrequency = String(frequency).trim().toLowerCase();
   const normalizedDay = String(day).trim().toLowerCase();
   const normalizedTime = String(time).trim();
+  const normalizedEndTime = String(endTime || "").trim();
   const normalizedEndDate = String(endDate || "").trim();
+  const normalizedAvailability = String(availability || "free").trim().toLowerCase();
 
   const validFrequencies = [
     "daily",
@@ -323,8 +344,18 @@ app.post("/recurring-events", (req, res) => {
     return res.status(400).json({ error: "Time must use HH:MM format." });
   }
 
+  if (normalizedEndTime && !/^\d{2}:\d{2}$/.test(normalizedEndTime)) {
+    return res.status(400).json({ error: "End time must use HH:MM format." });
+  }
+
   if (normalizedEndDate && !isValidDateOnly(normalizedEndDate)) {
     return res.status(400).json({ error: "End date must use YYYY-MM-DD format." });
+  }
+
+  if (!["free", "busy"].includes(normalizedAvailability)) {
+    return res.status(400).json({
+      error: "Availability must be free or busy."
+    });
   }
 
   const recurringEvent = {
@@ -333,9 +364,11 @@ app.post("/recurring-events", (req, res) => {
     frequency: normalizedFrequency,
     day: validDays.includes(normalizedDay) ? normalizedDay : "",
     time: normalizedTime,
+    endTime: normalizedEndTime,
     endDate: normalizedEndDate,
     where: String(where).trim(),
     extraInfo: String(extraInfo || "").trim(),
+    availability: normalizedAvailability,
     createdBy: displayName(createdBy),
     color: userColor(createdBy),
     createdAt: new Date().toISOString()

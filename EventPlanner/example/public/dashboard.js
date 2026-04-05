@@ -1,5 +1,6 @@
 const ACCESS_STORAGE_KEY = "eventPlannerUser";
 const THEME_STORAGE_KEY = "eventPlannerTheme";
+const AUTO_REFRESH_MS = 15000;
 
 const accessGate = document.getElementById("accessGate");
 const accessForm = document.getElementById("accessForm");
@@ -14,6 +15,8 @@ const titleInput = document.getElementById("titleInput");
 const whenInput = document.getElementById("whenInput");
 const whereInput = document.getElementById("whereInput");
 const extraInfoInput = document.getElementById("extraInfoInput");
+const availabilityFreeBtn = document.getElementById("availabilityFreeBtn");
+const availabilityBusyBtn = document.getElementById("availabilityBusyBtn");
 const statusMessage = document.getElementById("statusMessage");
 const selectedEventEl = document.getElementById("selectedEvent");
 const upcomingList = document.getElementById("upcomingList");
@@ -32,13 +35,17 @@ const recurringFrequencyInput = document.getElementById("recurringFrequencyInput
 const recurringDayField = document.getElementById("recurringDayField");
 const recurringDayInput = document.getElementById("recurringDayInput");
 const recurringTimeInput = document.getElementById("recurringTimeInput");
+const recurringEndTimeField = document.getElementById("recurringEndTimeField");
+const recurringEndTimeInput = document.getElementById("recurringEndTimeInput");
 const recurringEndDateField = document.getElementById("recurringEndDateField");
 const recurringEndDateInput = document.getElementById("recurringEndDateInput");
 const recurringWhereInput = document.getElementById("recurringWhereInput");
 const recurringExtraInfoInput = document.getElementById("recurringExtraInfoInput");
 const recurringStatusMessage = document.getElementById("recurringStatusMessage");
-const toggleRecurringFormBtn = document.getElementById("toggleRecurringFormBtn");
+const toggleRecurringEndTimeBtn = document.getElementById("toggleRecurringEndTimeBtn");
 const toggleRecurringEndDateBtn = document.getElementById("toggleRecurringEndDateBtn");
+const recurringAvailabilityFreeBtn = document.getElementById("recurringAvailabilityFreeBtn");
+const recurringAvailabilityBusyBtn = document.getElementById("recurringAvailabilityBusyBtn");
 const feedTab = document.getElementById("feedTab");
 const calendarTab = document.getElementById("calendarTab");
 const recurringTab = document.getElementById("recurringTab");
@@ -55,6 +62,8 @@ let events = [];
 let recurringEvents = [];
 let selectedEventId = null;
 let displayedMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+let selectedAvailability = "free";
+let selectedRecurringAvailability = "free";
 
 function escapeHtml(text) {
   const div = document.createElement("div");
@@ -241,6 +250,22 @@ function eventAccentStyle(event) {
   return event && event.color ? `style="border-left: 6px solid ${escapeHtml(event.color)};"` : "";
 }
 
+function availabilityLabel(value) {
+  return String(value || "").toLowerCase() === "busy"
+    ? "I am busy for this event"
+    : "I am free this event";
+}
+
+function syncAvailabilityButtons() {
+  availabilityFreeBtn.classList.toggle("is-active", selectedAvailability === "free");
+  availabilityBusyBtn.classList.toggle("is-active", selectedAvailability === "busy");
+}
+
+function syncRecurringAvailabilityButtons() {
+  recurringAvailabilityFreeBtn.classList.toggle("is-active", selectedRecurringAvailability === "free");
+  recurringAvailabilityBusyBtn.classList.toggle("is-active", selectedRecurringAvailability === "busy");
+}
+
 function requiresRecurringDay(frequency) {
   return ["weekly", "biweekly", "monthly"].includes(String(frequency || "").toLowerCase());
 }
@@ -285,6 +310,10 @@ function verifyStoredUser() {
   currentUser = storedName;
   welcomeEl.textContent = storedName;
   accessGate.classList.add("is-hidden");
+}
+
+async function refreshAllData() {
+  await Promise.all([loadEvents(), loadRecurringEvents()]);
 }
 
 function showView(view) {
@@ -376,6 +405,11 @@ function renderSelectedEvent() {
       <section class="info-block">
         <h3>Extra info</h3>
         <p>${escapeHtml(selected.extraInfo || "No extra info added yet.")}</p>
+      </section>
+
+      <section class="info-block">
+        <h3>Planner status</h3>
+        <p>${escapeHtml(availabilityLabel(selected.availability))}</p>
       </section>
 
       <aside class="info-block rsvp-block">
@@ -519,6 +553,8 @@ function renderCalendar() {
                     <span class="calendar-chip-marker" style="background: ${escapeHtml(event.color || "#d9d9d9")}"></span>
                     <strong>${escapeHtml(event.title)}</strong>
                     <span>${escapeHtml(formatTime(event.when))}</span>
+                    ${event.endTime ? `<span class="calendar-chip-note">Until ${escapeHtml(formatTime(`2026-01-01T${event.endTime}`))}</span>` : ""}
+                    ${event.availability ? `<span class="calendar-chip-note">${escapeHtml(availabilityLabel(event.availability))}</span>` : ""}
                     ${event.isRecurring ? '<span class="calendar-chip-note">Recurring</span>' : ""}
                   </button>
                 `).join("")
@@ -534,13 +570,7 @@ function renderCalendar() {
 
 function renderRecurringEvents() {
   if (!recurringEvents.length) {
-    recurringList.innerHTML = `
-      <div class="empty-state">
-        <p class="app-kicker">No recurring plans yet</p>
-        <h2>Build a routine</h2>
-        <p>Use the button above to add a weekly, biweekly, or monthly plan.</p>
-      </div>
-    `;
+    recurringList.innerHTML = "";
     return;
   }
 
@@ -568,11 +598,18 @@ function renderRecurringEvents() {
         }
         <div class="detail-card">
           <h3>Time</h3>
-          <p>${escapeHtml(formatTime(`2026-01-01T${event.time}`))}</p>
+          <p>
+            ${escapeHtml(formatTime(`2026-01-01T${event.time}`))}
+            ${event.endTime ? ` to ${escapeHtml(formatTime(`2026-01-01T${event.endTime}`))}` : ""}
+          </p>
         </div>
         <div class="detail-card">
           <h3>Where</h3>
           <p>${escapeHtml(event.where)}</p>
+        </div>
+        <div class="detail-card">
+          <h3>Planner status</h3>
+          <p>${escapeHtml(availabilityLabel(event.availability))}</p>
         </div>
         ${
           event.endDate
@@ -671,8 +708,12 @@ nextMonthBtn.addEventListener("click", () => {
   renderCalendar();
 });
 
-toggleRecurringFormBtn.addEventListener("click", () => {
-  recurringComposer.classList.toggle("is-hidden");
+toggleRecurringEndTimeBtn.addEventListener("click", () => {
+  const isHidden = recurringEndTimeField.classList.toggle("is-hidden");
+  toggleRecurringEndTimeBtn.textContent = isHidden ? "Add end time" : "Remove end time";
+  if (isHidden) {
+    recurringEndTimeInput.value = "";
+  }
 });
 
 toggleRecurringEndDateBtn.addEventListener("click", () => {
@@ -681,6 +722,16 @@ toggleRecurringEndDateBtn.addEventListener("click", () => {
   if (isHidden) {
     recurringEndDateInput.value = "";
   }
+});
+
+recurringAvailabilityFreeBtn.addEventListener("click", () => {
+  selectedRecurringAvailability = "free";
+  syncRecurringAvailabilityButtons();
+});
+
+recurringAvailabilityBusyBtn.addEventListener("click", () => {
+  selectedRecurringAvailability = "busy";
+  syncRecurringAvailabilityButtons();
 });
 
 themeBtn.addEventListener("click", () => {
@@ -715,6 +766,7 @@ eventForm.addEventListener("submit", async (event) => {
       when: whenInput.value,
       where: whereInput.value.trim(),
       extraInfo: extraInfoInput.value.trim(),
+      availability: selectedAvailability,
       username: currentUser
     })
   });
@@ -729,8 +781,20 @@ eventForm.addEventListener("submit", async (event) => {
   events = [data.event, ...events];
   selectedEventId = data.event.id;
   eventForm.reset();
+  selectedAvailability = "free";
+  syncAvailabilityButtons();
   statusMessage.textContent = "Event posted.";
   renderAll();
+});
+
+availabilityFreeBtn.addEventListener("click", () => {
+  selectedAvailability = "free";
+  syncAvailabilityButtons();
+});
+
+availabilityBusyBtn.addEventListener("click", () => {
+  selectedAvailability = "busy";
+  syncAvailabilityButtons();
 });
 
 recurringForm.addEventListener("submit", async (event) => {
@@ -754,11 +818,15 @@ recurringForm.addEventListener("submit", async (event) => {
       frequency: recurringFrequencyInput.value,
       day: requiresRecurringDay(recurringFrequencyInput.value) ? recurringDayInput.value : "",
       time: recurringTimeInput.value,
+      endTime: recurringEndTimeField.classList.contains("is-hidden")
+        ? ""
+        : recurringEndTimeInput.value,
       endDate: recurringEndDateField.classList.contains("is-hidden")
         ? ""
         : recurringEndDateInput.value,
       where: recurringWhereInput.value.trim(),
       extraInfo: recurringExtraInfoInput.value.trim(),
+      availability: selectedRecurringAvailability,
       username: currentUser
     })
   });
@@ -773,9 +841,12 @@ recurringForm.addEventListener("submit", async (event) => {
   recurringEvents = [data.recurringEvent, ...recurringEvents];
   recurringForm.reset();
   recurringStatusMessage.textContent = "Recurring plan saved.";
-  recurringComposer.classList.add("is-hidden");
+  recurringEndTimeField.classList.add("is-hidden");
+  toggleRecurringEndTimeBtn.textContent = "Add end time";
   recurringEndDateField.classList.add("is-hidden");
   toggleRecurringEndDateBtn.textContent = "Add end date";
+  selectedRecurringAvailability = "free";
+  syncRecurringAvailabilityButtons();
   syncRecurringFormState();
   renderRecurringEvents();
 });
@@ -1019,5 +1090,7 @@ accessForm.addEventListener("submit", async (event) => {
 verifyStoredUser();
 applyTheme(localStorage.getItem(THEME_STORAGE_KEY) || "light");
 syncRecurringFormState();
-loadEvents();
-loadRecurringEvents();
+syncAvailabilityButtons();
+syncRecurringAvailabilityButtons();
+refreshAllData();
+window.setInterval(refreshAllData, AUTO_REFRESH_MS);
