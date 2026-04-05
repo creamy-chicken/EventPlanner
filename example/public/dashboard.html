@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Collabic | Free Event</title>
+  <link rel="stylesheet" href="/dashboard.css" />
+</head>
+<body data-initial-view="feed" data-event-availability="free" data-recurring-availability="free">
+  <div id="accessGate" class="access-gate">
+    <div class="access-panel">
+      <p class="app-kicker">Planner access</p>
+      <h2>Enter your name</h2>
+      <p id="accessPrompt" class="access-copy">
+        Start with your name. Then answer your favorite-color question to enter the site.
+      </p>
+
+      <form id="accessForm" class="access-form">
+        <label>
+          <span id="accessLabel">Your name</span>
+          <input id="accessInput" type="text" autocomplete="off" required />
+        </label>
+        <div class="form-actions">
+          <p id="accessStatus" class="status-message"></p>
+          <button id="accessSubmit" class="primary-btn" type="submit">Continue</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="page-shell">
+    <header class="app-header panel">
+      <div>
+        <p class="app-kicker">Plan get-togethers, connect with friends</p>
+        <h1>Collabic</h1>
+      </div>
+
+      <div class="header-actions">
+        <p id="welcome" class="welcome-text">Loading profile...</p>
+
+        <div class="view-toggle" role="tablist" aria-label="View switcher">
+          <a id="feedTab" class="toggle-btn is-active" href="/dashboard">Event feed</a>
+          <a id="calendarTab" class="toggle-btn" href="/calendar">Calendar view</a>
+          <a id="recurringTab" class="toggle-btn" href="/recurring">Recurring plans</a>
+        </div>
+
+        <button id="themeBtn" class="secondary-btn" type="button">Dark mode</button>
+        <button id="logoutBtn" class="secondary-btn" type="button">Change user</button>
+      </div>
+    </header>
+
+    <div class="dashboard-grid">
+      <aside class="panel left-rail">
+        <div class="rail-head">
+          <h2>All events</h2>
+          <p>Newest posts first</p>
+        </div>
+
+        <section class="nav-section">
+          <button class="nav-section-head nav-section-toggle" type="button" data-collapse-target="upcomingList" aria-expanded="true">
+            <h3>Upcoming</h3>
+            <span id="upcomingCount">0</span>
+          </button>
+          <div id="upcomingList" class="event-nav-list"></div>
+        </section>
+
+        <section class="nav-section">
+          <button class="nav-section-head nav-section-toggle" type="button" data-collapse-target="personalList" aria-expanded="true">
+            <h3>Upcoming personal events</h3>
+            <span id="personalCount">0</span>
+          </button>
+          <div id="personalList" class="event-nav-list"></div>
+        </section>
+
+        <section class="nav-section">
+          <div class="nav-section-head">
+            <h3>Folders</h3>
+          </div>
+          <form id="folderForm" class="folder-form">
+            <input id="folderNameInput" type="text" placeholder="New folder name" required />
+            <button class="secondary-btn" type="submit">Add folder</button>
+          </form>
+          <div id="folderList" class="folder-list"></div>
+        </section>
+
+        <section class="nav-section past-section">
+          <button class="nav-section-head nav-section-toggle" type="button" data-collapse-target="pastList" aria-expanded="true">
+            <h3>Past events</h3>
+            <span id="pastCount">0</span>
+          </button>
+          <div id="pastList" class="event-nav-list"></div>
+        </section>
+      </aside>
+
+      <main class="main-column">
+        <section class="panel composer-panel">
+          <div class="composer-switch" role="tablist" aria-label="Event availability pages">
+            <a id="freeEventPageBtn" class="toggle-btn is-active" href="/dashboard">
+              Free event
+            </a>
+            <a id="busyEventPageBtn" class="toggle-btn" href="/busy-event">
+              Busy event
+            </a>
+          </div>
+
+          <div class="section-head">
+            <div>
+              <p class="app-kicker">New event post</p>
+              <h2 id="eventComposerTitle">Plan something for your friends</h2>
+            </div>
+          </div>
+
+          <form id="eventForm" class="event-form">
+            <label>
+              <span>Title</span>
+              <input id="titleInput" name="title" type="text" required />
+            </label>
+
+            <div class="form-grid">
+              <label>
+                <span>When</span>
+                <input id="whenInput" name="when" type="datetime-local" required />
+              </label>
+
+              <label>
+                <span id="whereLabel">Where</span>
+                <input id="whereInput" name="where" type="text" required />
+              </label>
+            </div>
+
+            <label>
+              <span>Extra info</span>
+              <textarea
+                id="extraInfoInput"
+                name="extraInfo"
+                rows="5"
+                placeholder="Add notes, timing details, what to bring, or anything friends should know."
+              ></textarea>
+            </label>
+
+            <div class="form-actions">
+              <p id="statusMessage" class="status-message"></p>
+              <button class="primary-btn" type="submit">Post event</button>
+            </div>
+          </form>
+        </section>
+
+        <section id="feedView" class="panel detail-panel view-panel">
+          <div id="selectedEvent"></div>
+        </section>
+
+        <section id="calendarView" class="panel calendar-panel view-panel is-hidden">
+          <div class="section-head">
+            <div>
+              <p class="app-kicker">Calendar month view</p>
+              <h2>Event calendar</h2>
+            </div>
+            <div class="calendar-controls">
+              <button id="prevMonthBtn" class="secondary-btn" type="button">Previous</button>
+              <p id="calendarMonthLabel" class="calendar-month-label">Loading...</p>
+              <button id="nextMonthBtn" class="secondary-btn" type="button">Next</button>
+            </div>
+          </div>
+          <div class="calendar-weekdays" aria-hidden="true">
+            <span>Sun</span>
+            <span>Mon</span>
+            <span>Tue</span>
+            <span>Wed</span>
+            <span>Thu</span>
+            <span>Fri</span>
+            <span>Sat</span>
+          </div>
+          <div id="calendarGrid" class="calendar-grid"></div>
+        </section>
+
+        <section id="recurringView" class="panel calendar-panel view-panel is-hidden">
+          <div class="composer-switch" role="tablist" aria-label="Recurring availability pages">
+            <a id="freeRecurringPageBtn" class="toggle-btn is-active" href="/recurring">
+              Free recurring
+            </a>
+            <a id="busyRecurringPageBtn" class="toggle-btn" href="/recurring-busy">
+              Busy recurring
+            </a>
+          </div>
+
+          <section id="recurringComposer" class="recurring-composer">
+            <form id="recurringForm" class="event-form">
+              <div class="section-head">
+                <div>
+                  <p class="app-kicker">Recurring plan</p>
+                  <h2 id="recurringComposerTitle">Plan a repeating event for your friends</h2>
+                </div>
+              </div>
+
+              <label>
+                <span>Title</span>
+                <input id="recurringTitleInput" type="text" required />
+              </label>
+
+              <div class="form-grid form-grid--triple">
+                <label>
+                  <span>Frequency</span>
+                  <select id="recurringFrequencyInput" required>
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="biweekly">Biweekly</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="every weekday">Every weekday</option>
+                    <option value="every weekend">Every weekend</option>
+                  </select>
+                </label>
+
+                <label id="recurringDayField">
+                  <span>Day</span>
+                  <select id="recurringDayInput" required>
+                    <option value="monday">Monday</option>
+                    <option value="tuesday">Tuesday</option>
+                    <option value="wednesday">Wednesday</option>
+                    <option value="thursday">Thursday</option>
+                    <option value="friday">Friday</option>
+                    <option value="saturday">Saturday</option>
+                    <option value="sunday">Sunday</option>
+                  </select>
+                </label>
+
+                <label>
+                  <span>Time</span>
+                  <input id="recurringTimeInput" type="time" required />
+                </label>
+              </div>
+
+              <div class="recurring-end-row">
+                <button id="toggleRecurringEndTimeBtn" class="secondary-btn" type="button">
+                  Add end time
+                </button>
+                <label id="recurringEndTimeField" class="is-hidden">
+                  <span>End time</span>
+                  <input id="recurringEndTimeInput" type="time" />
+                </label>
+              </div>
+
+              <div class="recurring-end-row">
+                <button id="toggleRecurringEndDateBtn" class="secondary-btn" type="button">
+                  Add end date
+                </button>
+                <label id="recurringEndDateField" class="is-hidden">
+                  <span>End date</span>
+                  <input id="recurringEndDateInput" type="date" />
+                </label>
+              </div>
+
+              <label>
+                <span>Where</span>
+                <input id="recurringWhereInput" type="text" required />
+              </label>
+
+              <label>
+                <span>Extra info</span>
+                <textarea
+                  id="recurringExtraInfoInput"
+                  rows="4"
+                  placeholder="Add notes for the repeating plan."
+                ></textarea>
+              </label>
+
+              <div class="form-actions">
+                <p id="recurringStatusMessage" class="status-message"></p>
+                <button class="primary-btn" type="submit">Save recurring plan</button>
+              </div>
+            </form>
+          </section>
+
+          <div id="recurringList" class="recurring-list"></div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script src="/dashboard.js"></script>
+</body>
+</html>
