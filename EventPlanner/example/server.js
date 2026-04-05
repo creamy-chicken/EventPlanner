@@ -94,6 +94,10 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(publicDir, "dashboard.html"));
 });
 
+app.get("/dashboard", (req, res) => {
+  res.sendFile(path.join(publicDir, "dashboard.html"));
+});
+
 app.get("/access-question", (req, res) => {
   const name = requireKnownUser(req.query.name);
 
