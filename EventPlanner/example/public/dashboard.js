@@ -1,6 +1,6 @@
 const ACCESS_STORAGE_KEY = "eventPlannerUser";
 const THEME_STORAGE_KEY = "eventPlannerTheme";
-const AUTO_REFRESH_MS = 15000;
+const CALENDAR_REFRESH_MS = 15000;
 
 const accessGate = document.getElementById("accessGate");
 const accessForm = document.getElementById("accessForm");
@@ -64,6 +64,7 @@ let selectedEventId = null;
 let displayedMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 let selectedAvailability = "free";
 let selectedRecurringAvailability = "free";
+let calendarRefreshId = null;
 
 function escapeHtml(text) {
   const div = document.createElement("div");
@@ -246,10 +247,6 @@ function applyTheme(theme) {
   themeBtn.textContent = nextTheme === "dark" ? "Light mode" : "Dark mode";
 }
 
-function eventAccentStyle(event) {
-  return event && event.color ? `style="border-left: 6px solid ${escapeHtml(event.color)};"` : "";
-}
-
 function availabilityLabel(value) {
   return String(value || "").toLowerCase() === "busy"
     ? "I am busy for this event"
@@ -312,8 +309,20 @@ function verifyStoredUser() {
   accessGate.classList.add("is-hidden");
 }
 
-async function refreshAllData() {
+async function refreshCalendarData() {
   await Promise.all([loadEvents(), loadRecurringEvents()]);
+}
+
+function startCalendarRefresh() {
+  stopCalendarRefresh();
+  calendarRefreshId = window.setInterval(refreshCalendarData, CALENDAR_REFRESH_MS);
+}
+
+function stopCalendarRefresh() {
+  if (calendarRefreshId) {
+    window.clearInterval(calendarRefreshId);
+    calendarRefreshId = null;
+  }
 }
 
 function showView(view) {
@@ -324,6 +333,12 @@ function showView(view) {
   calendarView.classList.toggle("is-hidden", view !== "calendar");
   recurringView.classList.toggle("is-hidden", view !== "recurring");
   eventForm.closest(".composer-panel").classList.toggle("is-hidden", view === "recurring");
+  if (view === "calendar") {
+    refreshCalendarData();
+    startCalendarRefresh();
+  } else {
+    stopCalendarRefresh();
+  }
 }
 
 function selectEvent(eventId) {
@@ -342,7 +357,6 @@ function renderNavList(container, list) {
       class="event-nav-item${event.id === selectedEventId ? " is-selected" : ""}"
       type="button"
       data-event-id="${event.id}"
-      ${eventAccentStyle(event)}
     >
       <span class="event-nav-title">${escapeHtml(event.title)}</span>
       <span class="event-nav-meta">${escapeHtml(formatWhen(event.when))}</span>
@@ -371,7 +385,7 @@ function renderSelectedEvent() {
   const currentResponse = (selected.rsvps || {})[currentUser] || "";
 
   selectedEventEl.innerHTML = `
-    <article class="event-detail" ${eventAccentStyle(selected)}>
+    <article class="event-detail">
       <div class="detail-meta">
         <span>Posted by ${escapeHtml(selected.createdBy)}</span>
         <span>${escapeHtml(new Date(selected.createdAt).toLocaleString())}</span>
@@ -575,7 +589,7 @@ function renderRecurringEvents() {
   }
 
   recurringList.innerHTML = recurringEvents.map((event) => `
-    <article class="recurring-card" ${eventAccentStyle(event)}>
+    <article class="recurring-card">
       <div class="detail-meta">
         <span>Planned by ${escapeHtml(event.createdBy)}</span>
         <span>${escapeHtml(new Date(event.createdAt).toLocaleDateString())}</span>
@@ -1092,5 +1106,4 @@ applyTheme(localStorage.getItem(THEME_STORAGE_KEY) || "light");
 syncRecurringFormState();
 syncAvailabilityButtons();
 syncRecurringAvailabilityButtons();
-refreshAllData();
-window.setInterval(refreshAllData, AUTO_REFRESH_MS);
+Promise.all([loadEvents(), loadRecurringEvents()]);
