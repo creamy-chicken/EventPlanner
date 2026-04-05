@@ -130,6 +130,22 @@ app.get("/dashboard", (req, res) => {
   res.sendFile(path.join(publicDir, "dashboard.html"));
 });
 
+app.get("/busy-event", (req, res) => {
+  res.sendFile(path.join(publicDir, "busy-event.html"));
+});
+
+app.get("/calendar", (req, res) => {
+  res.sendFile(path.join(publicDir, "calendar.html"));
+});
+
+app.get("/recurring", (req, res) => {
+  res.sendFile(path.join(publicDir, "recurring.html"));
+});
+
+app.get("/recurring-busy", (req, res) => {
+  res.sendFile(path.join(publicDir, "recurring-busy.html"));
+});
+
 app.get("/access-question", (req, res) => {
   const name = requireKnownUser(req.query.name);
 

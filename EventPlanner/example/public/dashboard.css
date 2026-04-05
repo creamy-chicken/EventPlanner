@@ -110,6 +110,11 @@ select {
   font: inherit;
 }
 
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
 button {
   border: 0;
   cursor: pointer;
@@ -185,6 +190,9 @@ p {
 }
 
 .toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 11px 16px;
   border-radius: 0;
   background: transparent;
@@ -312,6 +320,14 @@ p {
   align-items: center;
   gap: 12px;
   margin-bottom: 18px;
+}
+
+.composer-switch {
+  display: inline-flex;
+  gap: 6px;
+  padding: 4px;
+  margin-bottom: 18px;
+  background: rgba(31, 35, 33, 0.07);
 }
 
 .event-form {

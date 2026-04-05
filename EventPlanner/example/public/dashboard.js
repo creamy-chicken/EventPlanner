@@ -15,8 +15,9 @@ const titleInput = document.getElementById("titleInput");
 const whenInput = document.getElementById("whenInput");
 const whereInput = document.getElementById("whereInput");
 const extraInfoInput = document.getElementById("extraInfoInput");
-const availabilityFreeBtn = document.getElementById("availabilityFreeBtn");
-const availabilityBusyBtn = document.getElementById("availabilityBusyBtn");
+const freeEventPageBtn = document.getElementById("freeEventPageBtn");
+const busyEventPageBtn = document.getElementById("busyEventPageBtn");
+const eventComposerTitle = document.getElementById("eventComposerTitle");
 const statusMessage = document.getElementById("statusMessage");
 const selectedEventEl = document.getElementById("selectedEvent");
 const upcomingList = document.getElementById("upcomingList");
@@ -44,8 +45,9 @@ const recurringExtraInfoInput = document.getElementById("recurringExtraInfoInput
 const recurringStatusMessage = document.getElementById("recurringStatusMessage");
 const toggleRecurringEndTimeBtn = document.getElementById("toggleRecurringEndTimeBtn");
 const toggleRecurringEndDateBtn = document.getElementById("toggleRecurringEndDateBtn");
-const recurringAvailabilityFreeBtn = document.getElementById("recurringAvailabilityFreeBtn");
-const recurringAvailabilityBusyBtn = document.getElementById("recurringAvailabilityBusyBtn");
+const freeRecurringPageBtn = document.getElementById("freeRecurringPageBtn");
+const busyRecurringPageBtn = document.getElementById("busyRecurringPageBtn");
+const recurringComposerTitle = document.getElementById("recurringComposerTitle");
 const feedTab = document.getElementById("feedTab");
 const calendarTab = document.getElementById("calendarTab");
 const recurringTab = document.getElementById("recurringTab");
@@ -62,9 +64,10 @@ let events = [];
 let recurringEvents = [];
 let selectedEventId = null;
 let displayedMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-let selectedAvailability = "free";
-let selectedRecurringAvailability = "free";
+let selectedAvailability = document.body.dataset.eventAvailability || "free";
+let selectedRecurringAvailability = document.body.dataset.recurringAvailability || "free";
 let calendarRefreshId = null;
+const initialView = document.body.dataset.initialView || "feed";
 
 function escapeHtml(text) {
   const div = document.createElement("div");
@@ -254,13 +257,21 @@ function availabilityLabel(value) {
 }
 
 function syncAvailabilityButtons() {
-  availabilityFreeBtn.classList.toggle("is-active", selectedAvailability === "free");
-  availabilityBusyBtn.classList.toggle("is-active", selectedAvailability === "busy");
+  freeEventPageBtn.classList.toggle("is-active", selectedAvailability === "free");
+  busyEventPageBtn.classList.toggle("is-active", selectedAvailability === "busy");
+  eventComposerTitle.textContent =
+    selectedAvailability === "busy"
+      ? "Block out time for yourself"
+      : "Plan something for your friends";
 }
 
 function syncRecurringAvailabilityButtons() {
-  recurringAvailabilityFreeBtn.classList.toggle("is-active", selectedRecurringAvailability === "free");
-  recurringAvailabilityBusyBtn.classList.toggle("is-active", selectedRecurringAvailability === "busy");
+  freeRecurringPageBtn.classList.toggle("is-active", selectedRecurringAvailability === "free");
+  busyRecurringPageBtn.classList.toggle("is-active", selectedRecurringAvailability === "busy");
+  recurringComposerTitle.textContent =
+    selectedRecurringAvailability === "busy"
+      ? "Set a repeating busy block"
+      : "Plan a repeating event for your friends";
 }
 
 function requiresRecurringDay(frequency) {
@@ -332,7 +343,7 @@ function showView(view) {
   feedView.classList.toggle("is-hidden", view !== "feed");
   calendarView.classList.toggle("is-hidden", view !== "calendar");
   recurringView.classList.toggle("is-hidden", view !== "recurring");
-  eventForm.closest(".composer-panel").classList.toggle("is-hidden", view === "recurring");
+  eventForm.closest(".composer-panel").classList.toggle("is-hidden", view !== "feed");
   if (view === "calendar") {
     refreshCalendarData();
     startCalendarRefresh();
@@ -738,12 +749,12 @@ toggleRecurringEndDateBtn.addEventListener("click", () => {
   }
 });
 
-recurringAvailabilityFreeBtn.addEventListener("click", () => {
+freeRecurringPageBtn.addEventListener("click", () => {
   selectedRecurringAvailability = "free";
   syncRecurringAvailabilityButtons();
 });
 
-recurringAvailabilityBusyBtn.addEventListener("click", () => {
+busyRecurringPageBtn.addEventListener("click", () => {
   selectedRecurringAvailability = "busy";
   syncRecurringAvailabilityButtons();
 });
@@ -801,12 +812,12 @@ eventForm.addEventListener("submit", async (event) => {
   renderAll();
 });
 
-availabilityFreeBtn.addEventListener("click", () => {
+freeEventPageBtn.addEventListener("click", () => {
   selectedAvailability = "free";
   syncAvailabilityButtons();
 });
 
-availabilityBusyBtn.addEventListener("click", () => {
+busyEventPageBtn.addEventListener("click", () => {
   selectedAvailability = "busy";
   syncAvailabilityButtons();
 });
@@ -1106,4 +1117,5 @@ applyTheme(localStorage.getItem(THEME_STORAGE_KEY) || "light");
 syncRecurringFormState();
 syncAvailabilityButtons();
 syncRecurringAvailabilityButtons();
+showView(initialView);
 Promise.all([loadEvents(), loadRecurringEvents()]);
