@@ -21,8 +21,10 @@ const eventComposerTitle = document.getElementById("eventComposerTitle");
 const statusMessage = document.getElementById("statusMessage");
 const selectedEventEl = document.getElementById("selectedEvent");
 const upcomingList = document.getElementById("upcomingList");
+const personalList = document.getElementById("personalList");
 const pastList = document.getElementById("pastList");
 const upcomingCount = document.getElementById("upcomingCount");
+const personalCount = document.getElementById("personalCount");
 const pastCount = document.getElementById("pastCount");
 const calendarGrid = document.getElementById("calendarGrid");
 const calendarMonthLabel = document.getElementById("calendarMonthLabel");
@@ -256,6 +258,21 @@ function availabilityLabel(value) {
     : "I am free this event";
 }
 
+function calendarChipColor(event) {
+  return String(event.availability || "").toLowerCase() === "busy"
+    ? "#b33a3a"
+    : event.color || "#d9d9d9";
+}
+
+function calendarChipNote(event) {
+  const availability = String(event.availability || "").toLowerCase();
+  if (availability === "busy") {
+    return String(event.extraInfo || "").trim();
+  }
+
+  return availability ? availabilityLabel(availability) : "";
+}
+
 function syncAvailabilityButtons() {
   freeEventPageBtn.classList.toggle("is-active", selectedAvailability === "free");
   busyEventPageBtn.classList.toggle("is-active", selectedAvailability === "busy");
@@ -391,6 +408,7 @@ function renderSelectedEvent() {
   const selected = events.find((event) => event.id === selectedEventId) || events[0];
   selectedEventId = selected.id;
   const canDelete = selected.createdBy === currentUser;
+  const showAttendance = selected.availability !== "busy";
   const replies = (selected.replies || []).filter((reply) => reply.username);
   const rsvps = Object.entries(selected.rsvps || {}).sort((a, b) => a[0].localeCompare(b[0]));
   const currentResponse = (selected.rsvps || {})[currentUser] || "";
@@ -437,50 +455,56 @@ function renderSelectedEvent() {
         <p>${escapeHtml(availabilityLabel(selected.availability))}</p>
       </section>
 
-      <aside class="info-block rsvp-block">
-        <div class="section-head">
-          <div>
-            <p class="app-kicker">Attendance</p>
-            <h3>Can you come?</h3>
-          </div>
-        </div>
-
-        <div class="rsvp-actions">
-          <button
-            class="rsvp-btn${currentResponse === "yes" ? " is-active" : ""}"
-            type="button"
-            data-rsvp-event="${selected.id}"
-            data-rsvp-response="yes"
-          >
-            Yes
-          </button>
-          <button
-            class="rsvp-btn${currentResponse === "no" ? " is-active" : ""}"
-            type="button"
-            data-rsvp-event="${selected.id}"
-            data-rsvp-response="no"
-          >
-            No
-          </button>
-        </div>
-
-        <p class="status-message" data-rsvp-status="${selected.id}"></p>
-
-        ${
-          rsvps.length
-            ? `
-              <div class="rsvp-list">
-                ${rsvps.map(([name, value]) => `
-                  <div class="rsvp-item">
-                    <span>${escapeHtml(name)}</span>
-                    <strong>${escapeHtml(value)}</strong>
-                  </div>
-                `).join("")}
+      ${
+        showAttendance
+          ? `
+            <aside class="info-block rsvp-block">
+              <div class="section-head">
+                <div>
+                  <p class="app-kicker">Attendance</p>
+                  <h3>Can you come?</h3>
+                </div>
               </div>
-            `
-            : '<p class="empty-copy">No responses yet.</p>'
-        }
-      </aside>
+
+              <div class="rsvp-actions">
+                <button
+                  class="rsvp-btn${currentResponse === "yes" ? " is-active" : ""}"
+                  type="button"
+                  data-rsvp-event="${selected.id}"
+                  data-rsvp-response="yes"
+                >
+                  Yes
+                </button>
+                <button
+                  class="rsvp-btn${currentResponse === "no" ? " is-active" : ""}"
+                  type="button"
+                  data-rsvp-event="${selected.id}"
+                  data-rsvp-response="no"
+                >
+                  No
+                </button>
+              </div>
+
+              <p class="status-message" data-rsvp-status="${selected.id}"></p>
+
+              ${
+                rsvps.length
+                  ? `
+                    <div class="rsvp-list">
+                      ${rsvps.map(([name, value]) => `
+                        <div class="rsvp-item">
+                          <span>${escapeHtml(name)}</span>
+                          <strong>${escapeHtml(value)}</strong>
+                        </div>
+                      `).join("")}
+                    </div>
+                  `
+                  : '<p class="empty-copy">No responses yet.</p>'
+              }
+            </aside>
+          `
+          : ""
+      }
 
       <section class="info-block replies-block">
         <div class="section-head">
@@ -575,11 +599,11 @@ function renderCalendar() {
                     type="button"
                     ${event.isRecurring ? `data-recurring-event="${event.id}"` : `data-event-id="${event.id}"`}
                   >
-                    <span class="calendar-chip-marker" style="background: ${escapeHtml(event.color || "#d9d9d9")}"></span>
+                    <span class="calendar-chip-marker" style="background: ${escapeHtml(calendarChipColor(event))}"></span>
                     <strong>${escapeHtml(event.title)}</strong>
                     <span>${escapeHtml(formatTime(event.when))}</span>
                     ${event.endTime ? `<span class="calendar-chip-note">Until ${escapeHtml(formatTime(`2026-01-01T${event.endTime}`))}</span>` : ""}
-                    ${event.availability ? `<span class="calendar-chip-note">${escapeHtml(availabilityLabel(event.availability))}</span>` : ""}
+                    ${calendarChipNote(event) ? `<span class="calendar-chip-note">${escapeHtml(calendarChipNote(event))}</span>` : ""}
                     ${event.isRecurring ? '<span class="calendar-chip-note">Recurring</span>' : ""}
                   </button>
                 `).join("")
@@ -672,13 +696,23 @@ function renderRecurringEvents() {
 
 function renderAll() {
   const sortedEvents = sortNewestFirst(events);
-  const upcoming = sortedEvents.filter((event) => !isPastEvent(event));
+  const upcoming = sortedEvents.filter(
+    (event) => !isPastEvent(event) && event.availability !== "busy"
+  );
+  const personal = sortedEvents.filter(
+    (event) =>
+      !isPastEvent(event) &&
+      event.availability === "busy" &&
+      event.createdBy === currentUser
+  );
   const past = sortedEvents.filter((event) => isPastEvent(event));
 
   upcomingCount.textContent = String(upcoming.length);
+  personalCount.textContent = String(personal.length);
   pastCount.textContent = String(past.length);
 
   renderNavList(upcomingList, upcoming);
+  renderNavList(personalList, personal);
   renderNavList(pastList, past);
   renderSelectedEvent();
   renderCalendar();
@@ -877,6 +911,17 @@ recurringForm.addEventListener("submit", async (event) => {
 });
 
 document.addEventListener("click", (event) => {
+  const collapseTrigger = event.target.closest("[data-collapse-target]");
+  if (collapseTrigger) {
+    const targetId = collapseTrigger.getAttribute("data-collapse-target");
+    const target = document.getElementById(targetId);
+    if (target) {
+      const isCollapsed = target.classList.toggle("is-collapsed");
+      collapseTrigger.setAttribute("aria-expanded", String(!isCollapsed));
+    }
+    return;
+  }
+
   const deleteTrigger = event.target.closest("[data-delete-event]");
   if (deleteTrigger) {
     deleteEvent(Number(deleteTrigger.getAttribute("data-delete-event")));

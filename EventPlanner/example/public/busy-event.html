@@ -57,18 +57,26 @@
         </div>
 
         <section class="nav-section">
-          <div class="nav-section-head">
+          <button class="nav-section-head nav-section-toggle" type="button" data-collapse-target="upcomingList" aria-expanded="true">
             <h3>Upcoming</h3>
             <span id="upcomingCount">0</span>
-          </div>
+          </button>
           <div id="upcomingList" class="event-nav-list"></div>
         </section>
 
+        <section class="nav-section">
+          <button class="nav-section-head nav-section-toggle" type="button" data-collapse-target="personalList" aria-expanded="true">
+            <h3>Upcoming personal events</h3>
+            <span id="personalCount">0</span>
+          </button>
+          <div id="personalList" class="event-nav-list"></div>
+        </section>
+
         <section class="nav-section past-section">
-          <div class="nav-section-head">
+          <button class="nav-section-head nav-section-toggle" type="button" data-collapse-target="pastList" aria-expanded="true">
             <h3>Past events</h3>
             <span id="pastCount">0</span>
-          </div>
+          </button>
           <div id="pastList" class="event-nav-list"></div>
         </section>
       </aside>
