@@ -139,7 +139,7 @@ p {
 }
 
 .page-shell {
-  width: min(1320px, calc(100% - 28px));
+  width: min(1680px, calc(100% - 20px));
   margin: 0 auto;
   padding: 24px 0 36px;
 }
