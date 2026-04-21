@@ -1,0 +1,2 @@
+# This project runs on Node.js via package.json.
+# No Python packages are required.
